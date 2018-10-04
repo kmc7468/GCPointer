@@ -67,6 +67,11 @@
 ///// Declarations
 /////////////////////////////////////////////////////////////////
 
+#ifdef _GCPOINTER_HAS_NAMESPACE
+namespace _GCPOINTER_HAS_NAMESPACE
+{
+#endif
+
 template<typename Ty_>
 class gc_ptr;
 template<typename Ty_>
@@ -211,5 +216,9 @@ gc_ptr<Ty_>::~gc_ptr()
 {
 	// TODO
 }
+
+#ifdef _GCPOINTER_HAS_NAMESPACE
+}
+#endif
 
 #endif
