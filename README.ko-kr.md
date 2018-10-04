@@ -11,6 +11,12 @@ GCPointer는 RAII를 사용한 쓰레기 수집기로, C++을 위한 헤더 파�
 2. 여러분의 프로젝트에 파일을 Include 합니다.
 3. 즐기세요!
 
+## 조건부 컴파일 매크로
+- `_GCPOINTER_HAS_NAMESPACE`<br>
+이 매크로가 정의되어 있으면 GCPointer의 모든 클래스, 함수 등이 해당 매크로가 치환할 이름을 가진 네임스페이스 안에 선언됩니다.
+- `_GCPOINTER_FLAGS_CPLUSPLUS98`, `_GCPOINTER_FLAGS_CPLUSPLUS03`, `_GCPOINTER_FLAGS_CPLUSPLUS11`, `_GCPOINTER_FLAGS_CPLUSPLUS14`, `_GCPOINTER_FLAGS_CPLUSPLUS17`<br>
+각각 컴파일러가 C++98, C++03, C++11, C++14, C++17 표준을 제대로 지원함을 나타냅니다. 대부분의 경우 직접 이 매크로들을 정의할 필요가 없습니다.
+
 ## 라이선스
 ```
 MIT License
@@ -35,3 +41,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+## Special Thanks
+- 영문 README.md 검수: [서동휘](https://github.com/suhdonghwi), [kiwiyou](https://github.com/kiwiyou)
