@@ -61,7 +61,15 @@
 #define _GCPOINTER_IS_CPLUSPLUS14 (_GCPOINTER_CPLUSPLUS >= _GCPOINTER_CPLUSPLUS14)
 #define _GCPOINTER_IS_CPLUSPLUS17 (_GCPOINTER_CPLUSPLUS >= _GCPOINTER_CPLUSPLUS17)
 
-#define _GCPOINTER_DELETE
+#if _GCPOINTER_IS_CPLUSPLUS11
+#	define _GCPOINTER_DEFAULT = default
+#	define _GCPOINTER_DELETE = delete
+#	define _GCPOINTER_NOEXCEPT noexcept
+#else
+#	define _GCPOINTER_DEFAULT
+#	define _GCPOINTER_DELETE
+#	define _GCPOINTER_NOEXCEPT throw()
+#endif
 
 /////////////////////////////////////////////////////////////////
 ///// Declarations
@@ -80,37 +88,29 @@ class gc_field_ptr;
 template<typename Ty_>
 class _gc_ptr_data
 {
-	friend class gc_ptr<Ty_>;
-	friend class gc_field_ptr<Ty_>;
+	template<typename Ty2_>
+	friend class gc_ptr;
+	template<typename Ty2_>
+	friend class gc_field_ptr;
 
 private:
 	_gc_ptr_data();
 	_gc_ptr_data(std::size_t strong_reference_count);
 	_gc_ptr_data(const std::vector<gc_field_ptr<Ty_>*>& field_reference_count);
 	_gc_ptr_data(std::size_t strong_reference_count, const std::vector<gc_field_ptr<Ty_>*>& field_reference_count);
-#if _GCPOINTER_IS_CPLUSPLUS11
-	_gc_ptr_data(const _gc_ptr_data& data) = delete;
-	_gc_ptr_data(_gc_ptr_data&& data) = delete;
-	~_gc_ptr_data() = default;
-#else
 	_gc_ptr_data(const _gc_ptr_data& data) _GCPOINTER_DELETE;
-	~_gc_ptr_data();
+#if _GCPOINTER_IS_CPLUSPLUS11
+	_gc_ptr_data(_gc_ptr_data&& data) _GCPOINTER_DELETE;
 #endif
+	~_gc_ptr_data() _GCPOINTER_DEFAULT;
 
 private:
-#if _GCPOINTER_IS_CPLUSPLUS11
-	_gc_ptr_data& operator=(const _gc_ptr_data& data) = delete;
-	_gc_ptr_data& operator=(_gc_ptr_data&& data) = delete;
-	bool operator==(const _gc_ptr_data& data) = delete;
-	bool operator!=(const _gc_ptr_data& data) = delete;
-#else
 	_gc_ptr_data& operator=(const _gc_ptr_data& data) _GCPOINTER_DELETE;
+#if _GCPOINTER_IS_CPLUSPLUS11
+	_gc_ptr_data& operator=(_gc_ptr_data&& data) _GCPOINTER_DELETE;
+#endif
 	bool operator==(const _gc_ptr_data& data) _GCPOINTER_DELETE;
 	bool operator!=(const _gc_ptr_data& data) _GCPOINTER_DELETE;
-#endif
-
-private:
-	void inc_strong_reference_count();
 
 private:
 	std::size_t strong_reference_count_;
@@ -125,11 +125,11 @@ public:
 	typedef gc_field_ptr<Ty_> field_type;
 
 public:
-	gc_ptr();
+	gc_ptr() _GCPOINTER_NOEXCEPT;
 	gc_ptr(Ty_* data);
 	gc_ptr(const gc_ptr& ptr);
 #if _GCPOINTER_IS_CPLUSPLUS11
-	gc_ptr(gc_ptr&& ptr) noexcept;
+	gc_ptr(gc_ptr&& ptr) _GCPOINTER_NOEXCEPT;
 #endif
 	~gc_ptr();
 
@@ -176,18 +176,12 @@ _gc_ptr_data<Ty_>::~_gc_ptr_data()
 {}
 #endif
 
-template<typename Ty_>
-void _gc_ptr_data<Ty_>::inc_strong_reference_count()
-{
-	++strong_reference_count_;
-}
-
 //
 // gc_ptr
 //
 
 template<typename Ty_>
-gc_ptr<Ty_>::gc_ptr()
+gc_ptr<Ty_>::gc_ptr() _GCPOINTER_NOEXCEPT
 	: data_(NULL), mem_data_(NULL)
 {}
 template<typename Ty_>
@@ -198,14 +192,11 @@ template<typename Ty_>
 gc_ptr<Ty_>::gc_ptr(const gc_ptr& ptr)
 	: data_(ptr.data_), mem_data_(ptr.mem_data_)
 {
-	if (mem_data_)
-	{
-		mem_data_->inc_strong_reference_count();
-	}
+	// TODO
 }
 #if _GCPOINTER_IS_CPLUSPLUS11
 template<typename Ty_>
-gc_ptr<Ty_>::gc_ptr(gc_ptr&& ptr) noexcept
+gc_ptr<Ty_>::gc_ptr(gc_ptr&& ptr) _GCPOINTER_NOEXCEPT
 	: data_(ptr.data_), mem_data_(ptr.mem_data_)
 {
 	ptr.data_ = ptr.mem_data_ = NULL;
