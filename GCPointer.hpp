@@ -102,64 +102,19 @@ template<typename Ty_>
 class gc_field_ptr;
 
 #if !_GCPOINTER_IS_CPLUSPLUS11
-_GCPOINTER_DETAILS_BEGIN
-template<bool Cond_>
-struct enable_if
-{
-	typedef void type;
-};
-template<>
-struct enable_if<false>
-{};
-
 template<typename Ty_>
-struct is_gc_ptr
-{
-	enum
-	{
-		value = 0
-	};
-};
-template<typename Ty_>
-struct is_gc_ptr<gc_ptr<Ty_>>
-{
-	enum
-	{
-		value = 1
-	};
-};
-template<typename Ty_>
-struct is_gc_ptr<gc_field_ptr<Ty_>>
-{
-	enum
-	{
-		value = 1
-	};
-};
-template<typename Ty_>
-struct is_gc_ptr<gc_core_ptr<Ty_>>
-{
-	enum
-	{
-		value = 1
-	};
-};
-
-template<typename Ty_, typename = void>
-class moveable_object;
-
-template<typename Ty_>
-class moveable_object<Ty_, typename enable_if<is_gc_ptr<Ty_>::value>::type>
+class gc_rref
 {
 public:
-	moveable_object(Ty_& object) _GCPOINTER_NOEXCEPT;
-	moveable_object(const moveable_object& object) _GCPOINTER_NOEXCEPT;
-	~moveable_object();
+	explicit gc_rref(const Ty_& object) _GCPOINTER_NOEXCEPT;
+	explicit gc_rref(Ty_& object) _GCPOINTER_NOEXCEPT;
+	gc_rref(const gc_rref& object) _GCPOINTER_NOEXCEPT;
+	~gc_rref();
 
 public:
-	moveable_object<Ty_>& operator=(const moveable_object& object) _GCPOINTER_DELETE;
-	bool operator==(const moveable_object& object) const _GCPOINTER_NOEXCEPT;
-	bool operator!=(const moveable_object& object) const _GCPOINTER_NOEXCEPT;
+	gc_rref<Ty_>& operator=(const gc_rref& object) _GCPOINTER_DELETE;
+	bool operator==(const gc_rref& object) const _GCPOINTER_NOEXCEPT;
+	bool operator!=(const gc_rref& object) const _GCPOINTER_NOEXCEPT;
 
 public:
 	const Ty_& object() const _GCPOINTER_NOEXCEPT;
@@ -168,15 +123,15 @@ public:
 private:
 	Ty_& object_;
 };
-_GCPOINTER_DETAILS_END
 
 template<typename Ty_>
-_GCPOINTER_DETAILS::moveable_object<_GCPOINTER_DETAILS::gc_core_ptr<Ty_>> gc_move(_GCPOINTER_DETAILS::gc_core_ptr<Ty_>& ptr) _GCPOINTER_NOEXCEPT;
+gc_rref<Ty_> gc_move(const Ty_& data) _GCPOINTER_NOEXCEPT;
 template<typename Ty_>
-_GCPOINTER_DETAILS::moveable_object<gc_ptr<Ty_>> gc_move(gc_ptr<Ty_>& ptr) _GCPOINTER_NOEXCEPT;
-template<typename Ty_>
-_GCPOINTER_DETAILS::moveable_object<gc_field_ptr<Ty_>> gc_move(gc_field_ptr<Ty_>& ptr) _GCPOINTER_NOEXCEPT;
+gc_rref<Ty_> gc_move(Ty_& data) _GCPOINTER_NOEXCEPT;
 #else
+template<typename Ty_>
+using gc_rref = Ty_&&;
+
 template<typename Ty_>
 gc_ptr<Ty_>&& gc_move(gc_ptr<Ty_>& ptr) _GCPOINTER_NOEXCEPT;
 template<typename Ty_>
@@ -230,7 +185,7 @@ private:
 #if _GCPOINTER_IS_CPLUSPLUS11
 	gc_core_ptr(gc_core_ptr&& ptr) _GCPOINTER_NOEXCEPT;
 #else
-	gc_core_ptr(moveable_object<gc_core_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT;
+	gc_core_ptr(gc_rref<gc_core_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT;
 #endif
 	~gc_core_ptr();
 
@@ -239,7 +194,7 @@ private:
 #if _GCPOINTER_IS_CPLUSPLUS11
 	gc_core_ptr& operator=(gc_core_ptr&& ptr) _GCPOINTER_NOEXCEPT;
 #else
-	gc_core_ptr& operator=(moveable_object<gc_core_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT;
+	gc_core_ptr& operator=(gc_rref<gc_core_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT;
 #endif
 	bool operator==(const gc_core_ptr& ptr) _GCPOINTER_DELETE;
 	bool operator!=(const gc_core_ptr& ptr) _GCPOINTER_DELETE;
@@ -267,7 +222,7 @@ public:
 #if _GCPOINTER_IS_CPLUSPLUS11
 	gc_ptr(gc_ptr&& ptr) _GCPOINTER_NOEXCEPT;
 #else
-	gc_ptr(_GCPOINTER_DETAILS::moveable_object<gc_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT;
+	gc_ptr(gc_rref<gc_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT;
 #endif
 	~gc_ptr() _GCPOINTER_DEFAULT;
 
@@ -276,7 +231,7 @@ public:
 #if _GCPOINTER_IS_CPLUSPLUS11
 	gc_ptr& operator=(gc_ptr&& ptr) _GCPOINTER_NOEXCEPT;
 #else
-	gc_ptr& operator=(_GCPOINTER_DETAILS::moveable_object<gc_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT;
+	gc_ptr& operator=(gc_rref<gc_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT;
 #endif
 	bool operator==(const gc_ptr& ptr) const _GCPOINTER_NOEXCEPT;
 	bool operator!=(const gc_ptr& ptr) const _GCPOINTER_NOEXCEPT;
@@ -299,59 +254,56 @@ public:
 
 #if !_GCPOINTER_IS_CPLUSPLUS11
 //
-// details::moveable_object
+// details::gc_rref
 //
 
-_GCPOINTER_DETAILS_BEGIN
 template<typename Ty_>
-moveable_object<Ty_, typename enable_if<is_gc_ptr<Ty_>::value>::type>::moveable_object(Ty_& object) _GCPOINTER_NOEXCEPT
+gc_rref<Ty_>::gc_rref(const Ty_& object) _GCPOINTER_NOEXCEPT
+	: object_(const_cast<Ty_&>(object))
+{}
+template<typename Ty_>
+gc_rref<Ty_>::gc_rref(Ty_& object) _GCPOINTER_NOEXCEPT
 	: object_(object)
 {}
 template<typename Ty_>
-moveable_object<Ty_, typename enable_if<is_gc_ptr<Ty_>::value>::type>::moveable_object(const moveable_object& object) _GCPOINTER_NOEXCEPT
+gc_rref<Ty_>::gc_rref(const gc_rref& object) _GCPOINTER_NOEXCEPT
 	: object_(object.object_)
 {}
 template<typename Ty_>
-moveable_object<Ty_, typename enable_if<is_gc_ptr<Ty_>::value>::type>::~moveable_object()
+gc_rref<Ty_>::~gc_rref()
 {}
 
 template<typename Ty_>
-bool moveable_object<Ty_, typename enable_if<is_gc_ptr<Ty_>::value>::type>::operator==(const moveable_object& object) const _GCPOINTER_NOEXCEPT
+bool gc_rref<Ty_>::operator==(const gc_rref& object) const _GCPOINTER_NOEXCEPT
 {
 	return object_ == object.object_;
 }
 template<typename Ty_>
-bool moveable_object<Ty_, typename enable_if<is_gc_ptr<Ty_>::value>::type>::operator!=(const moveable_object& object) const _GCPOINTER_NOEXCEPT
+bool gc_rref<Ty_>::operator!=(const gc_rref& object) const _GCPOINTER_NOEXCEPT
 {
 	return object_ != object.object_;
 }
 
 template<typename Ty_>
-const Ty_& moveable_object<Ty_, typename enable_if<is_gc_ptr<Ty_>::value>::type>::object() const _GCPOINTER_NOEXCEPT
+const Ty_& gc_rref<Ty_>::object() const _GCPOINTER_NOEXCEPT
 {
 	return object_;
 }
 template<typename Ty_>
-Ty_& moveable_object<Ty_, typename enable_if<is_gc_ptr<Ty_>::value>::type>::object() _GCPOINTER_NOEXCEPT
+Ty_& gc_rref<Ty_>::object() _GCPOINTER_NOEXCEPT
 {
 	return object_;
 }
-_GCPOINTER_DETAILS_END
 
 template<typename Ty_>
-_GCPOINTER_DETAILS::moveable_object<_GCPOINTER_DETAILS::gc_core_ptr<Ty_>> gc_move(_GCPOINTER_DETAILS::gc_core_ptr<Ty_>& ptr) _GCPOINTER_NOEXCEPT
+gc_rref<Ty_> gc_move(const Ty_& data) _GCPOINTER_NOEXCEPT
 {
-	return ptr;
+	return gc_rref<Ty_>(data);
 }
 template<typename Ty_>
-_GCPOINTER_DETAILS::moveable_object<gc_ptr<Ty_>> gc_move(gc_ptr<Ty_>& ptr) _GCPOINTER_NOEXCEPT
+gc_rref<Ty_> gc_move(Ty_& data) _GCPOINTER_NOEXCEPT
 {
-	return ptr;
-}
-template<typename Ty_>
-_GCPOINTER_DETAILS::moveable_object<gc_field_ptr<Ty_>> gc_move(gc_field_ptr<Ty_>& ptr) _GCPOINTER_NOEXCEPT
-{
-	return ptr;
+	return gc_rref<Ty_>(data);
 }
 #else
 template<typename Ty_>
@@ -443,7 +395,7 @@ gc_core_ptr<Ty_>::gc_core_ptr(gc_core_ptr&& ptr) _GCPOINTER_NOEXCEPT
 }
 #else
 template<typename Ty_>
-gc_core_ptr<Ty_>::gc_core_ptr(moveable_object<gc_core_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT
+gc_core_ptr<Ty_>::gc_core_ptr(gc_rref<gc_core_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT
 	: data_(ptr.object().data_), mem_data_(ptr.object().mem_data_)
 {
 	ptr.object().data_ = NULL;
@@ -487,7 +439,7 @@ gc_core_ptr<Ty_>& gc_core_ptr<Ty_>::operator=(gc_core_ptr&& ptr) _GCPOINTER_NOEX
 }
 #else
 template<typename Ty_>
-gc_core_ptr<Ty_>& gc_core_ptr<Ty_>::operator=(moveable_object<gc_core_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT
+gc_core_ptr<Ty_>& gc_core_ptr<Ty_>::operator=(gc_rref<gc_core_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT
 {
 	free();
 
@@ -539,7 +491,7 @@ gc_ptr<Ty_>::gc_ptr(gc_ptr&& ptr) _GCPOINTER_NOEXCEPT
 {}
 #else
 template<typename Ty_>
-gc_ptr<Ty_>::gc_ptr(_GCPOINTER_DETAILS::moveable_object<gc_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT
+gc_ptr<Ty_>::gc_ptr(gc_rref<gc_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT
 	: core_(gc_move(ptr.object().core_))
 {}
 template<typename Ty_>
@@ -562,7 +514,7 @@ gc_ptr<Ty_>& gc_ptr<Ty_>::operator=(gc_ptr&& ptr) _GCPOINTER_NOEXCEPT
 }
 #else
 template<typename Ty_>
-gc_ptr<Ty_>& gc_ptr<Ty_>::operator=(_GCPOINTER_DETAILS::moveable_object<gc_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT
+gc_ptr<Ty_>& gc_ptr<Ty_>::operator=(gc_rref<gc_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT
 {
 	core_ = gc_move(ptr.object().core_);
 
