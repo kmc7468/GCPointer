@@ -29,6 +29,7 @@
 /////////////////////////////////////////////////////////////////
 
 #include <cstddef>
+#include <utility>
 #include <vector>
 
 #define _GCPOINTER_CPLUSPLUS98 199711L
@@ -65,10 +66,12 @@
 #	define _GCPOINTER_DEFAULT = default
 #	define _GCPOINTER_DELETE = delete
 #	define _GCPOINTER_NOEXCEPT noexcept
+#	define _GCPOINTER_FINAL final
 #else
 #	define _GCPOINTER_DEFAULT
 #	define _GCPOINTER_DELETE
 #	define _GCPOINTER_NOEXCEPT throw()
+#	define _GCPOINTER_FINAL
 #endif
 
 /////////////////////////////////////////////////////////////////
@@ -81,17 +84,16 @@ namespace _GCPOINTER_HAS_NAMESPACE
 #endif
 
 template<typename Ty_>
+class _gc_core_ptr;
+template<typename Ty_>
 class gc_ptr;
 template<typename Ty_>
 class gc_field_ptr;
 
 template<typename Ty_>
-class _gc_ptr_data
+class _gc_ptr_data _GCPOINTER_FINAL
 {
-	template<typename Ty2_>
-	friend class gc_ptr;
-	template<typename Ty2_>
-	friend class gc_field_ptr;
+	friend class _gc_core_ptr<Ty_>;
 
 private:
 	_gc_ptr_data();
@@ -113,8 +115,43 @@ private:
 	bool operator!=(const _gc_ptr_data& data) _GCPOINTER_DELETE;
 
 private:
+	void inc_strong_reference_count() _GCPOINTER_NOEXCEPT;
+	bool dec_strong_reference_count();
+
+private:
 	std::size_t strong_reference_count_;
 	std::vector<gc_field_ptr<Ty_>*> field_reference_count_;
+};
+
+template<typename Ty_>
+class _gc_core_ptr _GCPOINTER_FINAL
+{
+	friend class gc_ptr<Ty_>;
+	friend class gc_field_ptr<Ty_>;
+
+private:
+	_gc_core_ptr() _GCPOINTER_NOEXCEPT;
+	_gc_core_ptr(Ty_* data);
+	_gc_core_ptr(const _gc_core_ptr& ptr) _GCPOINTER_NOEXCEPT;
+#if _GCPOINTER_CPLUSPLUS11
+	_gc_core_ptr(_gc_core_ptr&& ptr) _GCPOINTER_NOEXCEPT;
+#endif
+	~_gc_core_ptr();
+
+private:
+	_gc_core_ptr& operator=(const _gc_core_ptr& ptr) _GCPOINTER_NOEXCEPT;
+#if _GCPOINTER_CPLUSPLUS11
+	_gc_core_ptr& operator=(_gc_core_ptr&& ptr) _GCPOINTER_NOEXCEPT;
+#endif
+	bool operator==(const _gc_core_ptr& ptr) _GCPOINTER_DELETE;
+	bool operator!=(const _gc_core_ptr& ptr) _GCPOINTER_DELETE;
+
+private:
+	void _delete();
+
+private:
+	Ty_* data_;
+	_gc_ptr_data<Ty_>* mem_data_;
 };
 
 template<typename Ty_>
@@ -127,15 +164,22 @@ public:
 public:
 	gc_ptr() _GCPOINTER_NOEXCEPT;
 	gc_ptr(Ty_* data);
-	gc_ptr(const gc_ptr& ptr);
+	gc_ptr(const gc_ptr& ptr) _GCPOINTER_NOEXCEPT;
 #if _GCPOINTER_IS_CPLUSPLUS11
 	gc_ptr(gc_ptr&& ptr) _GCPOINTER_NOEXCEPT;
 #endif
-	~gc_ptr();
+	~gc_ptr() _GCPOINTER_DEFAULT;
+
+public:
+	gc_ptr& operator=(const gc_ptr& ptr) _GCPOINTER_NOEXCEPT;
+#if _GCPOINTER_CPLUSPLUS11
+	gc_ptr& operator=(gc_ptr&& ptr) _GCPOINTER_NOEXCEPT;
+#endif
+	bool operator==(const gc_ptr& ptr) const _GCPOINTER_NOEXCEPT;
+	bool operator!=(const gc_ptr& ptr) const _GCPOINTER_NOEXCEPT;
 
 private:
-	Ty_* data_;
-	_gc_ptr_data<Ty_>* mem_data_;
+	_gc_core_ptr<Ty_> core_;
 };
 
 template<typename Ty_>
@@ -176,36 +220,154 @@ _gc_ptr_data<Ty_>::~_gc_ptr_data()
 {}
 #endif
 
+template<typename Ty_>
+void _gc_ptr_data<Ty_>::inc_strong_reference_count() _GCPOINTER_NOEXCEPT
+{
+	++strong_reference_count_;
+}
+template<typename Ty_>
+bool _gc_ptr_data<Ty_>::dec_strong_reference_count()
+{
+	if (!--strong_reference_count_)
+	{
+		// TODO
+		return true;
+	}
+	
+	return false;
+}
+
+//
+// _gc_core_ptr
+//
+
+template<typename Ty_>
+_gc_core_ptr<Ty_>::_gc_core_ptr() _GCPOINTER_NOEXCEPT
+	: data_(NULL), mem_data_(NULL)
+{}
+template<typename Ty_>
+_gc_core_ptr<Ty_>::_gc_core_ptr(Ty_* data)
+	: data_(data), mem_data_(new _gc_ptr_data<Ty_>(1))
+{}
+template<typename Ty_>
+_gc_core_ptr<Ty_>::_gc_core_ptr(const _gc_core_ptr& ptr) _GCPOINTER_NOEXCEPT
+	: data_(ptr.data_), mem_data_(ptr.mem_data_)
+{
+	if (mem_data_)
+	{
+		mem_data_->inc_strong_reference_count();
+	}
+}
+#if _GCPOINTER_CPLUSPLUS11
+template<typename Ty_>
+_gc_core_ptr<Ty_>::_gc_core_ptr(_gc_core_ptr&& ptr) _GCPOINTER_NOEXCEPT
+	: data_(ptr.data_), mem_data_(ptr.mem_data_)
+{
+	ptr.data_ = NULL;
+	ptr.mem_data_ = NULL;
+}
+#endif
+template<typename Ty_>
+_gc_core_ptr<Ty_>::~_gc_core_ptr()
+{
+	_delete();
+}
+
+template<typename Ty_>
+_gc_core_ptr<Ty_>& _gc_core_ptr<Ty_>::operator=(const _gc_core_ptr& ptr) _GCPOINTER_NOEXCEPT
+{
+	_delete();
+
+	data_ = ptr.data_;
+	mem_data_ = ptr.mem_data_;
+
+	if (mem_data_)
+	{
+		mem_data_->inc_strong_reference_count();
+	}
+
+	return *this;
+}
+#if _GCPOINTER_CPLUSPLUS11
+template<typename Ty_>
+_gc_core_ptr<Ty_>& _gc_core_ptr<Ty_>::operator=(_gc_core_ptr&& ptr) _GCPOINTER_NOEXCEPT
+{
+	_delete();
+
+	data_ = ptr.data_;
+	mem_data_ = ptr.mem_data_;
+
+	ptr.data_ = NULL;
+	ptr.mem_data_ = NULL;
+
+	return *this;
+}
+#endif
+
+template<typename Ty_>
+void _gc_core_ptr<Ty_>::_delete()
+{
+	if (mem_data_)
+	{
+		if (mem_data_->dec_strong_reference_count())
+		{
+			delete mem_data_;
+		}
+
+		data_ = NULL;
+		mem_data_ = NULL;
+	}
+}
+
 //
 // gc_ptr
 //
 
 template<typename Ty_>
 gc_ptr<Ty_>::gc_ptr() _GCPOINTER_NOEXCEPT
-	: data_(NULL), mem_data_(NULL)
 {}
 template<typename Ty_>
 gc_ptr<Ty_>::gc_ptr(Ty_* data)
-	: data_(data), mem_data_(new _gc_ptr_data<Ty_>(1))
+	: core_(data)
 {}
 template<typename Ty_>
-gc_ptr<Ty_>::gc_ptr(const gc_ptr& ptr)
-	: data_(ptr.data_), mem_data_(ptr.mem_data_)
-{
-	// TODO
-}
+gc_ptr<Ty_>::gc_ptr(const gc_ptr& ptr) _GCPOINTER_NOEXCEPT
+	: core_(ptr.core_)
+{}
 #if _GCPOINTER_IS_CPLUSPLUS11
 template<typename Ty_>
 gc_ptr<Ty_>::gc_ptr(gc_ptr&& ptr) _GCPOINTER_NOEXCEPT
-	: data_(ptr.data_), mem_data_(ptr.mem_data_)
+	: core_(std::move(ptr.core_))
+{}
+#else
+template<typename Ty_>
+gc_ptr<Ty_>::~gc_ptr()
+{}
+#endif
+
+template<typename Ty_>
+gc_ptr<Ty_>& gc_ptr<Ty_>::operator=(const gc_ptr& ptr) _GCPOINTER_NOEXCEPT
 {
-	ptr.data_ = ptr.mem_data_ = NULL;
+	core_ = ptr.core_;
+	return *this;
+}
+#if _GCPOINTER_CPLUSPLUS11
+template<typename Ty_>
+gc_ptr<Ty_>& gc_ptr<Ty_>::operator=(gc_ptr&& ptr) _GCPOINTER_NOEXCEPT
+{
+	core_ = std::move(ptr.core_);
+	return *this;
 }
 #endif
 template<typename Ty_>
-gc_ptr<Ty_>::~gc_ptr()
+bool gc_ptr<Ty_>::operator==(const gc_ptr& ptr) const _GCPOINTER_NOEXCEPT
 {
-	// TODO
+	return core_.mem_data_ == ptr.core_.mem_data_;
+}
+template<typename Ty_>
+bool gc_ptr<Ty_>::operator!=(const gc_ptr& ptr) const _GCPOINTER_NOEXCEPT
+{
+	return core_.mem_data_ != ptr.core_.mem_data_;
 }
 
 #ifdef _GCPOINTER_HAS_NAMESPACE
