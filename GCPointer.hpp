@@ -90,6 +90,86 @@ class gc_ptr;
 template<typename Ty_>
 class gc_field_ptr;
 
+#if !_GCPOINTER_IS_CPLUSPLUS11
+template<bool Cond_>
+struct _gc_enable_if
+{
+	typedef void type;
+};
+template<>
+struct _gc_enable_if<false>
+{};
+
+template<typename Ty_>
+struct _gc_is_gc_ptr
+{
+	enum
+	{
+		value = 0
+	};
+};
+template<typename Ty_>
+struct _gc_is_gc_ptr<gc_ptr<Ty_>>
+{
+	enum
+	{
+		value = 1
+	};
+};
+template<typename Ty_>
+struct _gc_is_gc_ptr<gc_field_ptr<Ty_>>
+{
+	enum
+	{
+		value = 1
+	};
+};
+template<typename Ty_>
+struct _gc_is_gc_ptr<_gc_core_ptr<Ty_>>
+{
+	enum
+	{
+		value = 1
+	};
+};
+
+template<typename Ty_, typename = void>
+class _gc_moveable_object;
+
+template<typename Ty_>
+class _gc_moveable_object<Ty_, typename _gc_enable_if<_gc_is_gc_ptr<Ty_>::value>::type>
+{
+public:
+	_gc_moveable_object(Ty_& object) _GCPOINTER_NOEXCEPT;
+	_gc_moveable_object(const _gc_moveable_object& object) _GCPOINTER_NOEXCEPT;
+	~_gc_moveable_object();
+
+public:
+	_gc_moveable_object<Ty_>& operator=(const _gc_moveable_object& object) _GCPOINTER_DELETE;
+	bool operator==(const _gc_moveable_object& object) const _GCPOINTER_NOEXCEPT;
+	bool operator!=(const _gc_moveable_object& object) const _GCPOINTER_NOEXCEPT;
+
+public:
+	const Ty_& object() const _GCPOINTER_NOEXCEPT;
+	Ty_& object() _GCPOINTER_NOEXCEPT;
+
+private:
+	Ty_& object_;
+};
+
+template<typename Ty_>
+_gc_moveable_object<_gc_core_ptr<Ty_>> gc_move(_gc_core_ptr<Ty_>& ptr) _GCPOINTER_NOEXCEPT;
+template<typename Ty_>
+_gc_moveable_object<gc_ptr<Ty_>> gc_move(gc_ptr<Ty_>& ptr) _GCPOINTER_NOEXCEPT;
+template<typename Ty_>
+_gc_moveable_object<gc_field_ptr<Ty_>> gc_move(gc_field_ptr<Ty_>& ptr) _GCPOINTER_NOEXCEPT;
+#else
+template<typename Ty_>
+gc_ptr<Ty_>&& gc_move(gc_ptr<Ty_>& ptr) _GCPOINTER_NOEXCEPT;
+template<typename Ty_>
+gc_field_ptr<Ty_>&& gc_move(gc_field_ptr<Ty_>& ptr) _GCPOINTER_NOEXCEPT;
+#endif
+
 template<typename Ty_>
 class _gc_ptr_data _GCPOINTER_FINAL
 {
@@ -133,15 +213,19 @@ private:
 	_gc_core_ptr() _GCPOINTER_NOEXCEPT;
 	_gc_core_ptr(Ty_* data);
 	_gc_core_ptr(const _gc_core_ptr& ptr) _GCPOINTER_NOEXCEPT;
-#if _GCPOINTER_CPLUSPLUS11
+#if _GCPOINTER_IS_CPLUSPLUS11
 	_gc_core_ptr(_gc_core_ptr&& ptr) _GCPOINTER_NOEXCEPT;
+#else
+	_gc_core_ptr(_gc_moveable_object<_gc_core_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT;
 #endif
 	~_gc_core_ptr();
 
 private:
 	_gc_core_ptr& operator=(const _gc_core_ptr& ptr) _GCPOINTER_NOEXCEPT;
-#if _GCPOINTER_CPLUSPLUS11
+#if _GCPOINTER_IS_CPLUSPLUS11
 	_gc_core_ptr& operator=(_gc_core_ptr&& ptr) _GCPOINTER_NOEXCEPT;
+#else
+	_gc_core_ptr& operator=(_gc_moveable_object<_gc_core_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT;
 #endif
 	bool operator==(const _gc_core_ptr& ptr) _GCPOINTER_DELETE;
 	bool operator!=(const _gc_core_ptr& ptr) _GCPOINTER_DELETE;
@@ -167,13 +251,17 @@ public:
 	gc_ptr(const gc_ptr& ptr) _GCPOINTER_NOEXCEPT;
 #if _GCPOINTER_IS_CPLUSPLUS11
 	gc_ptr(gc_ptr&& ptr) _GCPOINTER_NOEXCEPT;
+#else
+	gc_ptr(_gc_moveable_object<gc_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT;
 #endif
 	~gc_ptr() _GCPOINTER_DEFAULT;
 
 public:
 	gc_ptr& operator=(const gc_ptr& ptr) _GCPOINTER_NOEXCEPT;
-#if _GCPOINTER_CPLUSPLUS11
+#if _GCPOINTER_IS_CPLUSPLUS11
 	gc_ptr& operator=(gc_ptr&& ptr) _GCPOINTER_NOEXCEPT;
+#else
+	gc_ptr& operator=(_gc_moveable_object<gc_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT;
 #endif
 	bool operator==(const gc_ptr& ptr) const _GCPOINTER_NOEXCEPT;
 	bool operator!=(const gc_ptr& ptr) const _GCPOINTER_NOEXCEPT;
@@ -193,6 +281,73 @@ public:
 /////////////////////////////////////////////////////////////////
 ///// Definitions
 /////////////////////////////////////////////////////////////////
+
+#if !_GCPOINTER_IS_CPLUSPLUS11
+//
+// _gc_moveable_object
+//
+
+template<typename Ty_>
+_gc_moveable_object<Ty_, typename _gc_enable_if<_gc_is_gc_ptr<Ty_>::value>::type>::_gc_moveable_object(Ty_& object) _GCPOINTER_NOEXCEPT
+	: object_(object)
+{}
+template<typename Ty_>
+_gc_moveable_object<Ty_, typename _gc_enable_if<_gc_is_gc_ptr<Ty_>::value>::type>::_gc_moveable_object(const _gc_moveable_object& object) _GCPOINTER_NOEXCEPT
+	: object_(object.object_)
+{}
+template<typename Ty_>
+_gc_moveable_object<Ty_, typename _gc_enable_if<_gc_is_gc_ptr<Ty_>::value>::type>::~_gc_moveable_object()
+{}
+
+template<typename Ty_>
+bool _gc_moveable_object<Ty_, typename _gc_enable_if<_gc_is_gc_ptr<Ty_>::value>::type>::operator==(const _gc_moveable_object& object) const _GCPOINTER_NOEXCEPT
+{
+	return object_ == object.object_;
+}
+template<typename Ty_>
+bool _gc_moveable_object<Ty_, typename _gc_enable_if<_gc_is_gc_ptr<Ty_>::value>::type>::operator!=(const _gc_moveable_object& object) const _GCPOINTER_NOEXCEPT
+{
+	return object_ != object.object_;
+}
+
+template<typename Ty_>
+const Ty_& _gc_moveable_object<Ty_, typename _gc_enable_if<_gc_is_gc_ptr<Ty_>::value>::type>::object() const _GCPOINTER_NOEXCEPT
+{
+	return object_;
+}
+template<typename Ty_>
+Ty_& _gc_moveable_object<Ty_, typename _gc_enable_if<_gc_is_gc_ptr<Ty_>::value>::type>::object() _GCPOINTER_NOEXCEPT
+{
+	return object_;
+}
+
+template<typename Ty_>
+_gc_moveable_object<_gc_core_ptr<Ty_>> gc_move(_gc_core_ptr<Ty_>& ptr) _GCPOINTER_NOEXCEPT
+{
+	return ptr;
+}
+template<typename Ty_>
+_gc_moveable_object<gc_ptr<Ty_>> gc_move(gc_ptr<Ty_>& ptr) _GCPOINTER_NOEXCEPT
+{
+	return ptr;
+}
+template<typename Ty_>
+_gc_moveable_object<gc_field_ptr<Ty_>> gc_move(gc_field_ptr<Ty_>& ptr) _GCPOINTER_NOEXCEPT
+{
+	return ptr;
+}
+#else
+template<typename Ty_>
+gc_ptr<Ty_>&& gc_move(gc_ptr<Ty_>& ptr) _GCPOINTER_NOEXCEPT
+{
+	return std::move(ptr);
+}
+template<typename Ty_>
+gc_field_ptr<Ty_>&& gc_move(gc_field_ptr<Ty_>& ptr) _GCPOINTER_NOEXCEPT
+{
+	return std::move(ptr);
+}
+#endif
 
 //
 // _gc_ptr_data
@@ -258,13 +413,21 @@ _gc_core_ptr<Ty_>::_gc_core_ptr(const _gc_core_ptr& ptr) _GCPOINTER_NOEXCEPT
 		mem_data_->inc_strong_reference_count();
 	}
 }
-#if _GCPOINTER_CPLUSPLUS11
+#if _GCPOINTER_IS_CPLUSPLUS11
 template<typename Ty_>
 _gc_core_ptr<Ty_>::_gc_core_ptr(_gc_core_ptr&& ptr) _GCPOINTER_NOEXCEPT
 	: data_(ptr.data_), mem_data_(ptr.mem_data_)
 {
 	ptr.data_ = NULL;
 	ptr.mem_data_ = NULL;
+}
+#else
+template<typename Ty_>
+_gc_core_ptr<Ty_>::_gc_core_ptr(_gc_moveable_object<_gc_core_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT
+	: data_(ptr.object().data_), mem_data_(ptr.object().mem_data_)
+{
+	ptr.object().data_ = NULL;
+	ptr.object().mem_data_ = NULL;
 }
 #endif
 template<typename Ty_>
@@ -288,7 +451,7 @@ _gc_core_ptr<Ty_>& _gc_core_ptr<Ty_>::operator=(const _gc_core_ptr& ptr) _GCPOIN
 
 	return *this;
 }
-#if _GCPOINTER_CPLUSPLUS11
+#if _GCPOINTER_IS_CPLUSPLUS11
 template<typename Ty_>
 _gc_core_ptr<Ty_>& _gc_core_ptr<Ty_>::operator=(_gc_core_ptr&& ptr) _GCPOINTER_NOEXCEPT
 {
@@ -299,6 +462,20 @@ _gc_core_ptr<Ty_>& _gc_core_ptr<Ty_>::operator=(_gc_core_ptr&& ptr) _GCPOINTER_N
 
 	ptr.data_ = NULL;
 	ptr.mem_data_ = NULL;
+
+	return *this;
+}
+#else
+template<typename Ty_>
+_gc_core_ptr<Ty_>& _gc_core_ptr<Ty_>::operator=(_gc_moveable_object<_gc_core_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT
+{
+	_delete();
+
+	data_ = ptr.object().data_;
+	mem_data_ = ptr.object().mem_data_;
+
+	ptr.object().data_ = NULL;
+	ptr.object().mem_data_ = NULL;
 
 	return *this;
 }
@@ -341,6 +518,10 @@ gc_ptr<Ty_>::gc_ptr(gc_ptr&& ptr) _GCPOINTER_NOEXCEPT
 {}
 #else
 template<typename Ty_>
+gc_ptr<Ty_>::gc_ptr(_gc_moveable_object<gc_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT
+	: core_(gc_move(ptr.object().core_))
+{}
+template<typename Ty_>
 gc_ptr<Ty_>::~gc_ptr()
 {}
 #endif
@@ -351,11 +532,19 @@ gc_ptr<Ty_>& gc_ptr<Ty_>::operator=(const gc_ptr& ptr) _GCPOINTER_NOEXCEPT
 	core_ = ptr.core_;
 	return *this;
 }
-#if _GCPOINTER_CPLUSPLUS11
+#if _GCPOINTER_IS_CPLUSPLUS11
 template<typename Ty_>
 gc_ptr<Ty_>& gc_ptr<Ty_>::operator=(gc_ptr&& ptr) _GCPOINTER_NOEXCEPT
 {
 	core_ = std::move(ptr.core_);
+	return *this;
+}
+#else
+template<typename Ty_>
+gc_ptr<Ty_>& gc_ptr<Ty_>::operator=(_gc_moveable_object<gc_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT
+{
+	core_ = gc_move(ptr.object().core_);
+
 	return *this;
 }
 #endif
