@@ -1,3 +1,5 @@
+![works](https://img.shields.io/badge/works%20on-my%20machine-brightgreen.svg) ![experimental](https://img.shields.io/badge/stability-experimental-red.svg)
+
 # GCPointer
 RAII를 사용한 쓰레기 수집기 (실험적)
 - [English](https://github.com/kmc7468/GCPointer/blob/master/README.md)
@@ -10,6 +12,11 @@ GCPointer는 RAII를 사용한 쓰레기 수집기로, C++을 위한 헤더 파�
 1. GCPointer.hpp를 다운로드 합니다.
 2. 여러분의 프로젝트에 파일을 Include 합니다.
 3. 즐기세요!
+
+## 특징
+- 설치가 간단합니다: 하나의 헤더 파일만 다운로드 받으면 설치가 끝납니다.
+- 크로스 플랫폼입니다: 어느 플랫폼에서나 같은 인터페이스를 사용할 수 있습니다.
+- 모든 C++ 표준을 지원합니다: C++98에서도, C++17에서도 같은 인터페이스로 사용할 수 있습니다.
 
 ## 조건부 컴파일 매크로
 - `_GCPOINTER_HAS_NAMESPACE`<br>

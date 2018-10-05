@@ -1,3 +1,5 @@
+![works](https://img.shields.io/badge/works%20on-my%20machine-brightgreen.svg) ![experimental](https://img.shields.io/badge/stability-experimental-red.svg)
+
 # GCPointer
 Garbage Collector which uses RAII (Experimental)
 - English
@@ -10,6 +12,11 @@ GCPointer, Garbage collector which uses RAII, is a header-only library for C++. 
 1. Download GCPointer.hpp
 2. Include the file on your project
 3. Have fun!
+
+## Features
+- Easy to install: Just download only a single header file.
+- Cross-platform: You can use the same interface on any platform.
+- Supports every C++ standard: You can use the same interface in every C++ standard such as  C++98 and C++17.
 
 ## Conditional Compilation Macros
 - `_GCPOINTER_HAS_NAMESPACE`<br>
