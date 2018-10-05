@@ -5,7 +5,7 @@
  *
  * Copyright (c) 2018 kmc7468
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * Permission is hereby granted, reset of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
@@ -200,7 +200,11 @@ private:
 	bool operator!=(const gc_core_ptr& ptr) _GCPOINTER_DELETE;
 
 private:
-	void free();
+	void reset() _GCPOINTER_NOEXCEPT;
+	void swap(gc_core_ptr& ptr) _GCPOINTER_NOEXCEPT;
+	
+	bool empty() const _GCPOINTER_NOEXCEPT;
+	Ty_* get() const _GCPOINTER_NOEXCEPT;
 
 private:
 	Ty_* data_;
@@ -235,6 +239,16 @@ public:
 #endif
 	bool operator==(const gc_ptr& ptr) const _GCPOINTER_NOEXCEPT;
 	bool operator!=(const gc_ptr& ptr) const _GCPOINTER_NOEXCEPT;
+	Ty_* operator->() const _GCPOINTER_NOEXCEPT;
+	Ty_& operator*() const _GCPOINTER_NOEXCEPT;
+	operator bool() const _GCPOINTER_NOEXCEPT;
+
+public:
+	void reset() _GCPOINTER_NOEXCEPT;
+	void swap(gc_ptr& ptr) _GCPOINTER_NOEXCEPT;
+
+	bool empty() const _GCPOINTER_NOEXCEPT;
+	Ty_* get() const _GCPOINTER_NOEXCEPT;
 
 private:
 	_GCPOINTER_DETAILS::gc_core_ptr<Ty_> core_;
@@ -405,13 +419,13 @@ gc_core_ptr<Ty_>::gc_core_ptr(gc_rref<gc_core_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT
 template<typename Ty_>
 gc_core_ptr<Ty_>::~gc_core_ptr()
 {
-	free();
+	reset();
 }
 
 template<typename Ty_>
 gc_core_ptr<Ty_>& gc_core_ptr<Ty_>::operator=(const gc_core_ptr& ptr) _GCPOINTER_NOEXCEPT
 {
-	free();
+	reset();
 
 	data_ = ptr.data_;
 	mem_data_ = ptr.mem_data_;
@@ -427,7 +441,7 @@ gc_core_ptr<Ty_>& gc_core_ptr<Ty_>::operator=(const gc_core_ptr& ptr) _GCPOINTER
 template<typename Ty_>
 gc_core_ptr<Ty_>& gc_core_ptr<Ty_>::operator=(gc_core_ptr&& ptr) _GCPOINTER_NOEXCEPT
 {
-	free();
+	reset();
 
 	data_ = ptr.data_;
 	mem_data_ = ptr.mem_data_;
@@ -441,7 +455,7 @@ gc_core_ptr<Ty_>& gc_core_ptr<Ty_>::operator=(gc_core_ptr&& ptr) _GCPOINTER_NOEX
 template<typename Ty_>
 gc_core_ptr<Ty_>& gc_core_ptr<Ty_>::operator=(gc_rref<gc_core_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT
 {
-	free();
+	reset();
 
 	data_ = ptr.object().data_;
 	mem_data_ = ptr.object().mem_data_;
@@ -454,7 +468,7 @@ gc_core_ptr<Ty_>& gc_core_ptr<Ty_>::operator=(gc_rref<gc_core_ptr<Ty_>> ptr) _GC
 #endif
 
 template<typename Ty_>
-void gc_core_ptr<Ty_>::free()
+void gc_core_ptr<Ty_>::reset() _GCPOINTER_NOEXCEPT
 {
 	if (mem_data_)
 	{
@@ -466,6 +480,23 @@ void gc_core_ptr<Ty_>::free()
 		data_ = NULL;
 		mem_data_ = NULL;
 	}
+}
+template<typename Ty_>
+void gc_core_ptr<Ty_>::swap(gc_core_ptr& ptr) _GCPOINTER_NOEXCEPT
+{
+	std::swap(data_, ptr.data_);
+	std::swap(mem_data_, ptr.mem_data_);
+}
+
+template<typename Ty_>
+bool gc_core_ptr<Ty_>::empty() const _GCPOINTER_NOEXCEPT
+{
+	return mem_data_ == NULL;
+}
+template<typename Ty_>
+Ty_* gc_core_ptr<Ty_>::get() const _GCPOINTER_NOEXCEPT
+{
+	return data_;
 }
 _GCPOINTER_DETAILS_END
 
@@ -522,6 +553,16 @@ gc_ptr<Ty_>& gc_ptr<Ty_>::operator=(gc_rref<gc_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEP
 }
 #endif
 template<typename Ty_>
+Ty_* gc_ptr<Ty_>::operator->() const _GCPOINTER_NOEXCEPT
+{
+	return core_.get();
+}
+template<typename Ty_>
+Ty_& gc_ptr<Ty_>::operator*() const _GCPOINTER_NOEXCEPT
+{
+	return *core_.get();
+}
+template<typename Ty_>
 bool gc_ptr<Ty_>::operator==(const gc_ptr& ptr) const _GCPOINTER_NOEXCEPT
 {
 	return core_.mem_data_ == ptr.core_.mem_data_;
@@ -530,6 +571,33 @@ template<typename Ty_>
 bool gc_ptr<Ty_>::operator!=(const gc_ptr& ptr) const _GCPOINTER_NOEXCEPT
 {
 	return core_.mem_data_ != ptr.core_.mem_data_;
+}
+template<typename Ty_>
+gc_ptr<Ty_>::operator bool() const _GCPOINTER_NOEXCEPT
+{
+	return !empty();
+}
+
+template<typename Ty_>
+void gc_ptr<Ty_>::reset() _GCPOINTER_NOEXCEPT
+{
+	core_.reset();
+}
+template<typename Ty_>
+void gc_ptr<Ty_>::swap(gc_ptr<Ty_>& ptr) _GCPOINTER_NOEXCEPT
+{
+	core_.swap(ptr.core_);
+}
+
+template<typename Ty_>
+bool gc_ptr<Ty_>::empty() const _GCPOINTER_NOEXCEPT
+{
+	return core_.empty();
+}
+template<typename Ty_>
+Ty_* gc_ptr<Ty_>::get() const _GCPOINTER_NOEXCEPT
+{
+	return core_.get();
 }
 
 #ifdef _GCPOINTER_HAS_NAMESPACE
