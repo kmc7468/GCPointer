@@ -19,7 +19,20 @@ template<typename Ty_>
 struct enable_if<false, Ty_>
 {};
 
-#if defined(_GCPOINTER_WINDOWS) || defined(_GCPOINTER_POSIX)
+//
+// details::mutex_guard
+//
+
+mutex_guard::mutex_guard(mutex& mutex)
+	: mutex_(mutex)
+{
+	mutex.lock();
+}
+mutex_guard::~mutex_guard()
+{
+	mutex_.unlock();
+}
+
 //
 // details::atomic
 //
@@ -32,7 +45,23 @@ atomic::atomic(std::size_t value) _GCPOINTER_NOEXCEPT
 {}
 atomic::~atomic()
 {}
-#endif
+
+bool atomic::operator==(std::size_t value) const _GCPOINTER_NOEXCEPT
+{
+	return value_ == value;
+}
+bool atomic::operator==(const atomic& atomic) const _GCPOINTER_NOEXCEPT
+{
+	return value_ == atomic.value_;
+}
+bool atomic::operator!=(std::size_t value) const _GCPOINTER_NOEXCEPT
+{
+	return value_ != value;
+}
+bool atomic::operator!=(const atomic& atomic) const _GCPOINTER_NOEXCEPT
+{
+	return value_ != atomic.value_;
+}
 
 #if defined(_GCPOINTER_WINDOWS)
 //
