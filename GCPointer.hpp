@@ -78,6 +78,16 @@
 #define _GCPOINTER_DETAILS_BEGIN namespace _GCPOINTER_DETAILS {
 #define _GCPOINTER_DETAILS_END }
 
+#if !defined(_GCPOINTER_WINDOWS) && (\
+	defined(_WIN16) || defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(__TOS_WIN__) || defined(__WINDOWS__)) // Microsoft Windows
+#	define _GCPOINTER_WINDOWS
+#elif !defined(_GCPOINTER_POSIX) && (\
+	  defined(__gnu_linux__) ||\ // GNU/Linux
+	  defined(__unix__) || defined(__unix) ||\ // UNIX
+	  defined(macintosh) || defined(Macintosh) || (defined(__APPLE__) && defined(__MACH__)) // macOS
+#	define _GCPOINTER_POSIX
+#endif
+
 /////////////////////////////////////////////////////////////////
 ///// Includes
 /////////////////////////////////////////////////////////////////
@@ -89,6 +99,11 @@
 #if _GCPOINTER_IS_CPLUSPLUS11
 #	include <functional>
 #	include <type_traits>
+
+#	ifdef _GCPOINTER_MULTITHREADING
+#		include <atomic>
+#		include <mutex>
+#	endif
 #endif
 
 /////////////////////////////////////////////////////////////////
@@ -138,6 +153,80 @@ template<typename Ty_>
 constexpr
 #endif
 typename std::remove_reference<Ty_>::type&& gc_move(Ty_&& data) _GCPOINTER_NOEXCEPT;
+#endif
+
+#ifdef _GCPOINTER_MULTITHREADING
+_GCPOINTER_DETAILS_BEGIN
+#	if _GCPOINTER_IS_CPLUSPLUS11
+using atomic = std::atomic<std::size_t>;
+using mutex = std::mutex;
+using mutex_guard = std::lock_guard<mutex>;
+#	else
+class mutex;
+
+class atomic
+{
+public:
+	atomic() _GCPOINTER_NOEXCEPT;										// Impl
+	atomic(std::size_t value) _GCPOINTER_NOEXCEPT;						// Impl
+	atomic(const atomic& atomic) _GCPOINTER_DELETE;
+	~atomic();															// Impl
+
+public:
+	atomic& operator=(const atomic& atomic) _GCPOINTER_DELETE;
+	bool operator==(const atomic& atomic) const _GCPOINTER_DELETE;
+	bool operator!=(const atomic& atomic) const _GCPOINTER_DELETE;
+	std::size_t operator++() _GCPOINTER_NOEXCEPT;						// Impl
+	std::size_t operator--() _GCPOINTER_NOEXCEPT;						// Impl
+
+private:
+	volatile std::size_t value_;
+#ifndef _GCPOINTER_WINDOWS
+	mutex mutex_;
+#endif
+};
+
+class mutex
+{
+private:
+	struct handle_t_;													// Impl
+
+public:
+	mutex();															// Impl
+	mutex(const mutex& mutex) _GCPOINTER_DELETE;
+	~mutex();															// Impl
+
+public:
+	mutex& operator=(const mutex& mutex) _GCPOINTER_DELETE;
+	bool operator==(const mutex& mutex) const _GCPOINTER_DELETE;
+	bool operator!=(const mutex& mutex) const _GCPOINTER_DELETE;
+
+public:
+	void lock();														// Impl
+	bool try_lock();													// Impl
+	void unlock();														// Impl
+
+private:
+	handle_t_* handle_;
+};
+
+class mutex_guard
+{
+public:
+	mutex_guard(mutex& mutex);
+	mutex_guard(const mutex_guard& guard) _GCPOINTER_DELETE;
+	~mutex_guard();
+
+public:
+	mutex_guard& operator=(const mutex_guard& guard) _GCPOINTER_DELETE;
+	bool operator==(const mutex_guard& guard) const _GCPOINTER_DELETE;
+	bool operator!=(const mutex_guard& guard) const _GCPOINTER_DELETE;
+
+private:
+	mutex& mutex_;
+};
+#	endif
+_GCPOINTER_DETAILS_END
 #endif
 
 template<typename Ty_>
@@ -204,8 +293,13 @@ private:
 	Ty_* data_;
 	typename gc_deleter_type<Ty_>::type deleter_;
 
+#ifndef _GCPOINTER_MULTITHREADING
 	std::size_t strong_ref_;
 	std::size_t weak_ref_;
+#else
+	_GCPOINTER_DETAILS::atomic strong_ref_;
+	_GCPOINTER_DETAILS::atomic weak_ref_;
+#endif
 };
 _GCPOINTER_DETAILS_END
 
@@ -323,6 +417,24 @@ typename std::remove_reference<Ty_>::type&& gc_move(Ty_&& data) _GCPOINTER_NOEXC
 {
 	return std::move(std::forward<Ty_>(data));
 }
+#endif
+
+//
+// details::mutex_guard
+//
+
+#if !_GCPOINTER_IS_CPLUSPLUS11 && defined(_GCPOINTER_MULTITHREADING) && !defined(_GCPOINTER_INTERNAL)
+_GCPOINTER_DETAILS_BEGIN
+mutex_guard::mutex_guard(mutex& mutex)
+	: mutex_(mutex)
+{
+	mutex.lock();
+}
+mutex_guard::~mutex_guard()
+{
+	mutex_.unlock();
+}
+_GCPOINTER_DETAILS_END
 #endif
 
 //
@@ -549,6 +661,7 @@ const typename gc_ptr<Ty_>::deleter_type& gc_ptr<Ty_>::deleter() const _GCPOINTE
 {
 	return data_->deleter();
 }
+
 #ifdef _GCPOINTER_HAS_NAMESPACE
 }
 #endif
