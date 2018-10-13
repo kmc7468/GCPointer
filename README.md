@@ -21,6 +21,9 @@ GCPointer, Garbage collector which uses RAII, is a header-only library for C++. 
 ## Conditional Compilation Macros
 - `_GCPOINTER_HAS_NAMESPACE`<br>
 If this macro is defined, every class and function in GCPointer will be declared inside the namespace whose name is the value of the macro.
+- `_GCPOINTER_MULTITHREADING`<br>
+If this macro is defined, every function in GCPointer will be thread-safe. (With a slight performance loss.)<br>
+**Note:** To use this macro in pre-C++11 standard, your operating system must be Microsoft Windows or a POSIX-based operating system. Then download GCPointer.cpp file and link it to your project.
 - `_GCPOINTER_FLAGS_CPLUSPLUS98`, `_GCPOINTER_FLAGS_CPLUSPLUS03`, `_GCPOINTER_FLAGS_CPLUSPLUS11`, `_GCPOINTER_FLAGS_CPLUSPLUS14`, `_GCPOINTER_FLAGS_CPLUSPLUS17`<br>
 Each indicates if the compiler supports C++98, C++03, C++11, C++14, and C++17. In most cases, you don't have to define these macros manually.
 

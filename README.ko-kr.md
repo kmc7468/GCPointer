@@ -21,6 +21,9 @@ GCPointer는 RAII를 사용한 쓰레기 수집기로, C++을 위한 헤더 파�
 ## 조건부 컴파일 매크로
 - `_GCPOINTER_HAS_NAMESPACE`<br>
 이 매크로가 정의되어 있으면 GCPointer의 모든 클래스, 함수 등이 해당 매크로가 치환할 이름을 가진 네임스페이스 안에 선언됩니다.
+- `_GCPOINTER_MULTITHREADING`<br>
+이 매크로가 정의되어 있으면 GCPointer의 모든 함수가 쓰레드에 안전한 함수가 됩니다. (약간의 성능 저하가 발생할 수 있습니다.)<br>
+**Note:** C++98 및 C++03에서 이 매크로를 사용하려면 운영체제가 Microsoft Windows 또는 POSIX 계열 운영체제여야 하며, GCPointer.cpp 파일을 다운로드 해 프로젝트에 링크해야 합니다.
 - `_GCPOINTER_FLAGS_CPLUSPLUS98`, `_GCPOINTER_FLAGS_CPLUSPLUS03`, `_GCPOINTER_FLAGS_CPLUSPLUS11`, `_GCPOINTER_FLAGS_CPLUSPLUS14`, `_GCPOINTER_FLAGS_CPLUSPLUS17`<br>
 각각 컴파일러가 C++98, C++03, C++11, C++14, C++17 표준을 제대로 지원함을 나타냅니다. 대부분의 경우 직접 이 매크로들을 정의할 필요가 없습니다.
 
