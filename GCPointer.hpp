@@ -28,6 +28,9 @@
 ///// Global Macros
 /////////////////////////////////////////////////////////////////
 
+#define _GCPOINTER_MAJOR 1ull
+#define _GCPOINTER_MINOR 0ull
+
 #define _GCPOINTER_CPLUSPLUS98 199711L
 #define _GCPOINTER_CPLUSPLUS03 _GCPOINTER_CPLUSPLUS98
 #define _GCPOINTER_CPLUSPLUS11 201103L
@@ -320,13 +323,19 @@ public:
 
 public:
 	gc_ptr() _GCPOINTER_NOEXCEPT;
-	gc_ptr(Ty_* data);
+#if _GCPOINTER_IS_CPLUSPLUS11
+	gc_ptr(std::nullptr_t) _GCPOINTER_NOEXCEPT;
+#endif
+	explicit gc_ptr(Ty_* data);
 	gc_ptr(Ty_* data, const deleter_type& deleter);
 	gc_ptr(const gc_ptr& ptr) _GCPOINTER_NOEXCEPT;
 	gc_ptr(gc_rref<gc_ptr<Ty_> > ptr) _GCPOINTER_NOEXCEPT;
 	~gc_ptr();
 
 public:
+#if _GCPOINTER_IS_CPLUSPLUS11
+	gc_ptr& operator=(std::nullptr_t) _GCPOINTER_NOEXCEPT;
+#endif
 	gc_ptr& operator=(const gc_ptr& ptr) _GCPOINTER_NOEXCEPT;
 	gc_ptr& operator=(gc_rref<gc_ptr<Ty_> > ptr) _GCPOINTER_NOEXCEPT;
 	bool operator==(const gc_ptr& ptr) const _GCPOINTER_NOEXCEPT;
@@ -357,12 +366,18 @@ public:
 
 public:
 	gc_weak_ptr() _GCPOINTER_NOEXCEPT;
+#if _GCPOINTER_IS_CPLUSPLUS11
+	gc_weak_ptr(std::nullptr_t) _GCPOINTER_NOEXCEPT;
+#endif
 	gc_weak_ptr(const strong_type& ptr) _GCPOINTER_NOEXCEPT;
 	gc_weak_ptr(const gc_weak_ptr& ptr) _GCPOINTER_NOEXCEPT;
 	gc_weak_ptr(gc_rref<gc_weak_ptr<Ty_> > ptr) _GCPOINTER_NOEXCEPT;
 	~gc_weak_ptr();
 
 public:
+#if _GCPOINTER_IS_CPLUSPLUS11
+	gc_weak_ptr& operator=(std::nullptr_t) _GCPOINTER_NOEXCEPT;
+#endif
 	gc_weak_ptr& operator=(const strong_type& ptr) _GCPOINTER_NOEXCEPT;
 	gc_weak_ptr& operator=(const gc_weak_ptr& ptr) _GCPOINTER_NOEXCEPT;
 	gc_weak_ptr& operator=(gc_rref<gc_weak_ptr<Ty_> > ptr) _GCPOINTER_NOEXCEPT;
@@ -588,14 +603,28 @@ template<typename Ty_>
 gc_ptr<Ty_>::gc_ptr() _GCPOINTER_NOEXCEPT
 	: data_(_GCPOINTER_NULL)
 {}
+#if _GCPOINTER_IS_CPLUSPLUS11
+template<typename Ty_>
+gc_ptr<Ty_>::gc_ptr(std::nullptr_t) _GCPOINTER_NOEXCEPT
+	: data_(_GCPOINTER_NULL)
+{}
+#endif
 template<typename Ty_>
 gc_ptr<Ty_>::gc_ptr(Ty_* data)
-	: data_(new _GCPOINTER_DETAILS::gc_data<Ty_>(data))
-{}
+{
+	if (data != _GCPOINTER_NULL)
+	{
+		data_ = new _GCPOINTER_DETAILS::gc_data<Ty_>(data);
+	}
+}
 template<typename Ty_>
 gc_ptr<Ty_>::gc_ptr(Ty_* data, const deleter_type& deleter)
-	: data_(new _GCPOINTER_DETAILS::gc_data<Ty_>(data, deleter))
-{}
+{
+	if (data != _GCPOINTER_NULL)
+	{
+		data_ = new _GCPOINTER_DETAILS::gc_data<Ty_>(data, deleter);
+	}
+}
 template<typename Ty_>
 gc_ptr<Ty_>::gc_ptr(const gc_ptr& ptr) _GCPOINTER_NOEXCEPT
 	: data_(ptr.data_)
@@ -625,6 +654,14 @@ gc_ptr<Ty_>::~gc_ptr()
 	reset();
 }
 
+#if _GCPOINTER_IS_CPLUSPLUS11
+template<typename Ty_>
+gc_ptr<Ty_>& gc_ptr<Ty_>::operator=(std::nullptr_t) _GCPOINTER_NOEXCEPT
+{
+	reset();
+	return *this;
+}
+#endif
 template<typename Ty_>
 gc_ptr<Ty_>& gc_ptr<Ty_>::operator=(const gc_ptr& ptr) _GCPOINTER_NOEXCEPT
 {
@@ -723,6 +760,12 @@ template<typename Ty_>
 gc_weak_ptr<Ty_>::gc_weak_ptr() _GCPOINTER_NOEXCEPT
 	: data_(_GCPOINTER_NULL)
 {}
+#if _GCPOINTER_IS_CPLUSPLUS11
+template<typename Ty_>
+gc_weak_ptr<Ty_>::gc_weak_ptr(std::nullptr_t) _GCPOINTER_NOEXCEPT
+	: data_(_GCPOINTER_NULL)
+{}
+#endif
 template<typename Ty_>
 gc_weak_ptr<Ty_>::gc_weak_ptr(const strong_type& ptr) _GCPOINTER_NOEXCEPT
 	: data_(ptr.data_)
@@ -761,6 +804,14 @@ gc_weak_ptr<Ty_>::~gc_weak_ptr()
 	reset();
 }
 
+#if _GCPOINTER_IS_CPLUSPLUS11
+template<typename Ty_>
+gc_weak_ptr<Ty_>& gc_weak_ptr<Ty_>::operator=(std::nullptr_t) _GCPOINTER_NOEXCEPT
+{
+	reset();
+	return *this;
+}
+#endif
 template<typename Ty_>
 gc_weak_ptr<Ty_>& gc_weak_ptr<Ty_>::operator=(const strong_type& ptr) _GCPOINTER_NOEXCEPT
 {
