@@ -325,6 +325,7 @@ public:
 	gc_ptr() _GCPOINTER_NOEXCEPT;
 #if _GCPOINTER_IS_CPLUSPLUS11
 	gc_ptr(std::nullptr_t) _GCPOINTER_NOEXCEPT;
+	gc_ptr(std::nullptr_t, const deleter_type& deleter);
 #endif
 	explicit gc_ptr(Ty_* data);
 	gc_ptr(Ty_* data, const deleter_type& deleter);
@@ -572,7 +573,7 @@ void gc_data<Ty_>::inc_weak_ref() _GCPOINTER_NOEXCEPT
 template<typename Ty_>
 void gc_data<Ty_>::dec_weak_ref() _GCPOINTER_NOEXCEPT
 {
-	if (!--strong_ref_)
+	if (!--weak_ref_)
 	{
 		free();
 
@@ -606,6 +607,10 @@ gc_ptr<Ty_>::gc_ptr() _GCPOINTER_NOEXCEPT
 #if _GCPOINTER_IS_CPLUSPLUS11
 template<typename Ty_>
 gc_ptr<Ty_>::gc_ptr(std::nullptr_t) _GCPOINTER_NOEXCEPT
+	: data_(_GCPOINTER_NULL)
+{}
+template<typename Ty_>
+gc_ptr<Ty_>::gc_ptr(std::nullptr_t, const deleter_type&)
 	: data_(_GCPOINTER_NULL)
 {}
 #endif
