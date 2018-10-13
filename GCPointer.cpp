@@ -36,40 +36,6 @@ atomic::~atomic()
 
 #if defined(_GCPOINTER_WINDOWS)
 //
-// details::atomic
-//
-
-template<typename Dummy_>
-static typename enable_if<sizeof(Dummy_) == 4, std::size_t>::type inc(volatile std::size_t* value) _GCPOINTER_NOEXCEPT
-{
-	return InterlockedIncrement(value);
-}
-template<typename Dummy_>
-static typename enable_if<sizeof(Dummy_) == 8, std::size_t>::type inc(volatile std::size_t* value) _GCPOINTER_NOEXCEPT
-{
-	return InterlockedIncrement64(reinterpret_cast<volatile LONG64*>(value));
-}
-template<typename Dummy_>
-static typename enable_if<sizeof(Dummy_) == 4, std::size_t>::type dec(volatile std::size_t* value) _GCPOINTER_NOEXCEPT
-{
-	return InterlockedDecrement(value);
-}
-template<typename Dummy_>
-static typename enable_if<sizeof(Dummy_) == 8, std::size_t>::type dec(volatile std::size_t* value) _GCPOINTER_NOEXCEPT
-{
-	return InterlockedDecrement64(reinterpret_cast<volatile LONG64*>(value));
-}
-
-std::size_t atomic::operator++() _GCPOINTER_NOEXCEPT
-{
-	return inc<std::size_t>(&value_);
-}
-std::size_t atomic::operator--() _GCPOINTER_NOEXCEPT
-{
-	return dec<std::size_t>(&value_);
-}
-
-//
 // details::mutex
 //
 
@@ -103,24 +69,41 @@ void mutex::unlock()
 {
 	ReleaseMutex(handle_->handle);
 }
-#elif defined(_GCPOINTER_POSIX)
+
 //
 // details::atomic
 //
 
+template<typename Dummy_>
+static typename enable_if<sizeof(Dummy_) == 4, std::size_t>::type inc(volatile std::size_t* value) _GCPOINTER_NOEXCEPT
+{
+	return InterlockedIncrement(value);
+}
+template<typename Dummy_>
+static typename enable_if<sizeof(Dummy_) == 8, std::size_t>::type inc(volatile std::size_t* value) _GCPOINTER_NOEXCEPT
+{
+	return InterlockedIncrement64(reinterpret_cast<volatile LONG64*>(value));
+}
+template<typename Dummy_>
+static typename enable_if<sizeof(Dummy_) == 4, std::size_t>::type dec(volatile std::size_t* value) _GCPOINTER_NOEXCEPT
+{
+	return InterlockedDecrement(value);
+}
+template<typename Dummy_>
+static typename enable_if<sizeof(Dummy_) == 8, std::size_t>::type dec(volatile std::size_t* value) _GCPOINTER_NOEXCEPT
+{
+	return InterlockedDecrement64(reinterpret_cast<volatile LONG64*>(value));
+}
+
 std::size_t atomic::operator++() _GCPOINTER_NOEXCEPT
 {
-	mutex_guard guard(mutex_);
-
-	return ++value_;
+	return inc<std::size_t>(&value_);
 }
-std::size_t atomic::operator++() _GCPOINTER_NOEXCEPT
+std::size_t atomic::operator--() _GCPOINTER_NOEXCEPT
 {
-	mutex_guard guard(mutex_);
-
-	return --value_;
+	return dec<std::size_t>(&value_);
 }
-
+#elif defined(_GCPOINTER_POSIX)
 //
 // details::mutex
 //
@@ -154,6 +137,23 @@ bool mutex::try_lock()
 void mutex::unlock()
 {
 	pthread_mutex_unlock(&handle_->handle);
+}
+
+//
+// details::atomic
+//
+
+std::size_t atomic::operator++() _GCPOINTER_NOEXCEPT
+{
+	mutex_guard guard(mutex_);
+
+	return ++value_;
+}
+std::size_t atomic::operator--() _GCPOINTER_NOEXCEPT
+{
+	mutex_guard guard(mutex_);
+
+	return --value_;
 }
 #endif
 _GCPOINTER_DETAILS_END

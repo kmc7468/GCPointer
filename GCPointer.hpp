@@ -73,18 +73,14 @@
 #ifdef _GCPOINTER_HAS_NAMESPACE
 #	define _GCPOINTER_DETAILS details
 #else
-#	define _GCPOINTER_DETAILS _GCPOINTER_DETAILS
+#	define _GCPOINTER_DETAILS gc_details
 #endif
 #define _GCPOINTER_DETAILS_BEGIN namespace _GCPOINTER_DETAILS {
 #define _GCPOINTER_DETAILS_END }
 
-#if !defined(_GCPOINTER_WINDOWS) && (\
-	defined(_WIN16) || defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(__TOS_WIN__) || defined(__WINDOWS__)) // Microsoft Windows
+#if !defined(_GCPOINTER_WINDOWS) && (defined(_WIN16) || defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(__TOS_WIN__) || defined(__WINDOWS__))
 #	define _GCPOINTER_WINDOWS
-#elif !defined(_GCPOINTER_POSIX) && (\
-	  defined(__gnu_linux__) ||\ // GNU/Linux
-	  defined(__unix__) || defined(__unix) ||\ // UNIX
-	  defined(macintosh) || defined(Macintosh) || (defined(__APPLE__) && defined(__MACH__)) // macOS
+#elif !defined(_GCPOINTER_POSIX) && (defined(__gnu_linux__) || defined(__unix__) || defined(__unix) || defined(macintosh) || defined(Macintosh) || (defined(__APPLE__) && defined(__MACH__)))
 #	define _GCPOINTER_POSIX
 #endif
 
@@ -158,34 +154,10 @@ typename std::remove_reference<Ty_>::type&& gc_move(Ty_&& data) _GCPOINTER_NOEXC
 #ifdef _GCPOINTER_MULTITHREADING
 _GCPOINTER_DETAILS_BEGIN
 #	if _GCPOINTER_IS_CPLUSPLUS11
-using atomic = std::atomic<std::size_t>;
 using mutex = std::mutex;
 using mutex_guard = std::lock_guard<mutex>;
+using atomic = std::atomic<std::size_t>;
 #	else
-class mutex;
-
-class atomic
-{
-public:
-	atomic() _GCPOINTER_NOEXCEPT;										// Impl
-	atomic(std::size_t value) _GCPOINTER_NOEXCEPT;						// Impl
-	atomic(const atomic& atomic) _GCPOINTER_DELETE;
-	~atomic();															// Impl
-
-public:
-	atomic& operator=(const atomic& atomic) _GCPOINTER_DELETE;
-	bool operator==(const atomic& atomic) const _GCPOINTER_DELETE;
-	bool operator!=(const atomic& atomic) const _GCPOINTER_DELETE;
-	std::size_t operator++() _GCPOINTER_NOEXCEPT;						// Impl
-	std::size_t operator--() _GCPOINTER_NOEXCEPT;						// Impl
-
-private:
-	volatile std::size_t value_;
-#ifndef _GCPOINTER_WINDOWS
-	mutex mutex_;
-#endif
-};
-
 class mutex
 {
 private:
@@ -224,6 +196,28 @@ public:
 
 private:
 	mutex& mutex_;
+};
+
+class atomic
+{
+public:
+	atomic() _GCPOINTER_NOEXCEPT;										// Impl
+	atomic(std::size_t value) _GCPOINTER_NOEXCEPT;						// Impl
+	atomic(const atomic& atomic) _GCPOINTER_DELETE;
+	~atomic();															// Impl
+
+public:
+	atomic& operator=(const atomic& atomic) _GCPOINTER_DELETE;
+	bool operator==(const atomic& atomic) const _GCPOINTER_DELETE;
+	bool operator!=(const atomic& atomic) const _GCPOINTER_DELETE;
+	std::size_t operator++() _GCPOINTER_NOEXCEPT;						// Impl
+	std::size_t operator--() _GCPOINTER_NOEXCEPT;						// Impl
+
+private:
+	volatile std::size_t value_;
+#ifndef _GCPOINTER_WINDOWS
+	mutex mutex_;
+#endif
 };
 #	endif
 _GCPOINTER_DETAILS_END
@@ -316,12 +310,12 @@ public:
 	gc_ptr(Ty_* data);
 	gc_ptr(Ty_* data, const deleter_type& deleter);
 	gc_ptr(const gc_ptr& ptr) _GCPOINTER_NOEXCEPT;
-	gc_ptr(gc_rref<gc_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT;
+	gc_ptr(gc_rref<gc_ptr<Ty_> > ptr) _GCPOINTER_NOEXCEPT;
 	~gc_ptr();
 
 public:
 	gc_ptr& operator=(const gc_ptr& ptr) _GCPOINTER_NOEXCEPT;
-	gc_ptr& operator=(gc_rref<gc_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT;
+	gc_ptr& operator=(gc_rref<gc_ptr<Ty_> > ptr) _GCPOINTER_NOEXCEPT;
 	bool operator==(const gc_ptr& ptr) const _GCPOINTER_NOEXCEPT;
 	bool operator!=(const gc_ptr& ptr) const _GCPOINTER_NOEXCEPT;
 	Ty_& operator[](std::size_t index) const _GCPOINTER_NOEXCEPT;
@@ -534,11 +528,11 @@ gc_ptr<Ty_>::gc_ptr() _GCPOINTER_NOEXCEPT
 {}
 template<typename Ty_>
 gc_ptr<Ty_>::gc_ptr(Ty_* data)
-	: data_(new _GCPOINTER_DETAILS::gc_data(data))
+	: data_(new _GCPOINTER_DETAILS::gc_data<Ty_>(data))
 {}
 template<typename Ty_>
 gc_ptr<Ty_>::gc_ptr(Ty_* data, const deleter_type& deleter)
-	: data_(new _GCPOINTER_DETAILS::gc_data(data, deleter))
+	: data_(new _GCPOINTER_DETAILS::gc_data<Ty_>(data, deleter))
 {}
 template<typename Ty_>
 gc_ptr<Ty_>::gc_ptr(const gc_ptr& ptr) _GCPOINTER_NOEXCEPT
@@ -550,7 +544,7 @@ gc_ptr<Ty_>::gc_ptr(const gc_ptr& ptr) _GCPOINTER_NOEXCEPT
 	}
 }
 template<typename Ty_>
-gc_ptr<Ty_>::gc_ptr(gc_rref<gc_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT
+gc_ptr<Ty_>::gc_ptr(gc_rref<gc_ptr<Ty_> > ptr) _GCPOINTER_NOEXCEPT
 #if _GCPOINTER_IS_CPLUSPLUS11
 	: data_(ptr.data_)
 #else
@@ -583,7 +577,7 @@ gc_ptr<Ty_>& gc_ptr<Ty_>::operator=(const gc_ptr& ptr) _GCPOINTER_NOEXCEPT
 	return *this;
 }
 template<typename Ty_>
-gc_ptr<Ty_>& gc_ptr<Ty_>::operator=(gc_rref<gc_ptr<Ty_>> ptr) _GCPOINTER_NOEXCEPT
+gc_ptr<Ty_>& gc_ptr<Ty_>::operator=(gc_rref<gc_ptr<Ty_> > ptr) _GCPOINTER_NOEXCEPT
 {
 	reset();
 
