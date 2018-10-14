@@ -659,6 +659,10 @@ _GCPOINTER_DETAILS_END
 //
 
 _GCPOINTER_DETAILS_BEGIN
+template<typename Ty_, typename Deleter_>
+gc_data_deleter<Ty_, Deleter_>::~gc_data_deleter()
+{}
+
 #if _GCPOINTER_IS_CPLUSPLUS11
 template<typename Ty_, typename Deleter_>
 gc_data_deleter<Ty_, Deleter_>::gc_data_deleter(Deleter_&& deleter)
@@ -727,7 +731,7 @@ gc_ptr<Ty_>::gc_ptr(Ty_* data, Deleter_&& deleter)
 {
 	if (data)
 	{
-		data_ = new _GCPOINTER_DETAILS::gc_data_deleter<Ty_, Deleter_>(data, std::forward<Deleter_>(deleter));
+		ref_ = new _GCPOINTER_DETAILS::gc_data_deleter<Ty_, Deleter_>(data, std::forward<Deleter_>(deleter));
 	}
 }
 #else
@@ -735,7 +739,7 @@ gc_ptr<Ty_>::gc_ptr(Ty_* data, Deleter_ deleter)
 {
 	if (data)
 	{
-		data_ = new _GCPOINTER_DETAILS::gc_data_deleter<Ty_, Deleter_>(data, deleter);
+		ref_ = new _GCPOINTER_DETAILS::gc_data_deleter<Ty_, Deleter_>(data, deleter);
 	}
 }
 #endif
