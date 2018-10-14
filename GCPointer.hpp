@@ -175,8 +175,8 @@ public:
 
 public:
 	mutex& operator=(const mutex& mutex) _GCPOINTER_DELETE;
-	bool operator==(const mutex& mutex) const _GCPOINTER_DELETE;
-	bool operator!=(const mutex& mutex) const _GCPOINTER_DELETE;
+	bool operator==(const mutex& mutex) _GCPOINTER_DELETE;
+	bool operator!=(const mutex& mutex) _GCPOINTER_DELETE;
 
 public:
 	void lock();														// Impl
@@ -196,8 +196,8 @@ public:
 
 public:
 	mutex_guard& operator=(const mutex_guard& guard) _GCPOINTER_DELETE;
-	bool operator==(const mutex_guard& guard) const _GCPOINTER_DELETE;
-	bool operator!=(const mutex_guard& guard) const _GCPOINTER_DELETE;
+	bool operator==(const mutex_guard& guard) _GCPOINTER_DELETE;
+	bool operator!=(const mutex_guard& guard) _GCPOINTER_DELETE;
 
 private:
 	mutex& mutex_;
@@ -252,8 +252,8 @@ protected:
 
 public:
 	gc_data_base& operator=(const gc_data_base& data) _GCPOINTER_DELETE;
-	bool operator==(const gc_data_base& data) const _GCPOINTER_DELETE;
-	bool operator!=(const gc_data_base& data) const _GCPOINTER_DELETE;
+	bool operator==(const gc_data_base& data) _GCPOINTER_DELETE;
+	bool operator!=(const gc_data_base& data) _GCPOINTER_DELETE;
 
 protected:
 	virtual void delete_data() _GCPOINTER_NOEXCEPT = 0;
@@ -297,8 +297,8 @@ private:
 
 public:
 	gc_data& operator=(const gc_data& data) _GCPOINTER_DELETE;
-	bool operator==(const gc_data& data) const _GCPOINTER_DELETE;
-	bool operator!=(const gc_data& data) const _GCPOINTER_DELETE;
+	bool operator==(const gc_data& data) _GCPOINTER_DELETE;
+	bool operator!=(const gc_data& data) _GCPOINTER_DELETE;
 
 protected:
 	virtual inline void delete_data() _GCPOINTER_NOEXCEPT _GCPOINTER_OVERRIDE;
@@ -331,8 +331,8 @@ private:
 
 public:
 	gc_data_deleter& operator=(const gc_data_deleter& data) _GCPOINTER_DELETE;
-	bool operator==(const gc_data_deleter& data) const _GCPOINTER_DELETE;
-	bool operator!=(const gc_data_deleter& data) const _GCPOINTER_DELETE;
+	bool operator==(const gc_data_deleter& data) _GCPOINTER_DELETE;
+	bool operator!=(const gc_data_deleter& data) _GCPOINTER_DELETE;
 
 protected:
 	virtual inline void delete_data() _GCPOINTER_NOEXCEPT _GCPOINTER_OVERRIDE;
@@ -632,7 +632,7 @@ gc_ptr<Ty_>::gc_ptr(Ty_* data)
 {
 	data_ = data;
 
-	if (data != _GCPOINTER_NULL)
+	if (data)
 	{
 		ref_ = new _GCPOINTER_DETAILS::gc_data<Ty_>(data);
 	}
@@ -642,7 +642,7 @@ template<typename Deleter_>
 #if _GCPOINTER_IS_CPLUSPLUS11
 gc_ptr<Ty_>::gc_ptr(Ty_* data, Deleter_&& deleter)
 {
-	if (data != _GCPOINTER_NULL)
+	if (data)
 	{
 		data_ = new _GCPOINTER_DETAILS::gc_data_deleter<Ty_, Deleter_>(data, std::forward<Deleter_>(deleter));
 	}
@@ -650,7 +650,7 @@ gc_ptr<Ty_>::gc_ptr(Ty_* data, Deleter_&& deleter)
 #else
 gc_ptr<Ty_>::gc_ptr(Ty_* data, Deleter_ deleter)
 {
-	if (data != _GCPOINTER_NULL)
+	if (data)
 	{
 		data_ = new _GCPOINTER_DETAILS::gc_data_deleter<Ty_, Deleter_>(data, deleter);
 	}
