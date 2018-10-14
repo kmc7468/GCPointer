@@ -1,4 +1,3 @@
-#define _GCPOINTER_INTERNAL
 #include "GCPointer.hpp"
 
 #if !_GCPOINTER_IS_CPLUSPLUS11 && defined(_GCPOINTER_MULTITHREADING)
@@ -18,50 +17,6 @@ struct enable_if
 template<typename Ty_>
 struct enable_if<false, Ty_>
 {};
-
-//
-// details::mutex_guard
-//
-
-mutex_guard::mutex_guard(mutex& mutex)
-	: mutex_(mutex)
-{
-	mutex.lock();
-}
-mutex_guard::~mutex_guard()
-{
-	mutex_.unlock();
-}
-
-//
-// details::atomic
-//
-
-atomic::atomic() _GCPOINTER_NOEXCEPT
-	: value_(0)
-{}
-atomic::atomic(std::size_t value) _GCPOINTER_NOEXCEPT
-	: value_(value)
-{}
-atomic::~atomic()
-{}
-
-bool atomic::operator==(std::size_t value) const _GCPOINTER_NOEXCEPT
-{
-	return value_ == value;
-}
-bool atomic::operator==(const atomic& atomic) const _GCPOINTER_NOEXCEPT
-{
-	return value_ == atomic.value_;
-}
-bool atomic::operator!=(std::size_t value) const _GCPOINTER_NOEXCEPT
-{
-	return value_ != value;
-}
-bool atomic::operator!=(const atomic& atomic) const _GCPOINTER_NOEXCEPT
-{
-	return value_ != atomic.value_;
-}
 
 #if defined(_GCPOINTER_WINDOWS)
 //

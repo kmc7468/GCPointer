@@ -170,7 +170,7 @@ private:
 
 public:
 	mutex();															// Impl
-	mutex(const mutex& mutex) _GCPOINTER_DELETE;
+	inline mutex(const mutex& mutex) _GCPOINTER_DELETE;
 	~mutex();															// Impl
 
 public:
@@ -190,9 +190,9 @@ private:
 class mutex_guard
 {
 public:
-	mutex_guard(mutex& mutex);
+	inline mutex_guard(mutex& mutex);
 	mutex_guard(const mutex_guard& guard) _GCPOINTER_DELETE;
-	~mutex_guard();
+	inline ~mutex_guard();
 
 public:
 	mutex_guard& operator=(const mutex_guard& guard) _GCPOINTER_DELETE;
@@ -206,19 +206,20 @@ private:
 class atomic
 {
 public:
-	atomic() _GCPOINTER_NOEXCEPT;										// Impl
-	atomic(std::size_t value) _GCPOINTER_NOEXCEPT;						// Impl
+	inline atomic() _GCPOINTER_NOEXCEPT;
+	inline atomic(std::size_t value) _GCPOINTER_NOEXCEPT;
 	atomic(const atomic& atomic) _GCPOINTER_DELETE;
-	~atomic();															// Impl
+	inline ~atomic();
 
 public:
 	atomic& operator=(const atomic& atomic) _GCPOINTER_DELETE;
-	bool operator==(std::size_t value) const _GCPOINTER_NOEXCEPT;
-	bool operator==(const atomic& atomic) const _GCPOINTER_NOEXCEPT;
-	bool operator!=(std::size_t value) const _GCPOINTER_NOEXCEPT;
-	bool operator!=(const atomic& atomic) const _GCPOINTER_NOEXCEPT;
+	inline bool operator==(std::size_t value) const _GCPOINTER_NOEXCEPT;
+	inline bool operator==(const atomic& atomic) const _GCPOINTER_NOEXCEPT;
+	inline bool operator!=(std::size_t value) const _GCPOINTER_NOEXCEPT;
+	inline bool operator!=(const atomic& atomic) const _GCPOINTER_NOEXCEPT;
 	std::size_t operator++() _GCPOINTER_NOEXCEPT;						// Impl
 	std::size_t operator--() _GCPOINTER_NOEXCEPT;						// Impl
+	inline explicit operator std::size_t() const _GCPOINTER_NOEXCEPT;
 
 private:
 	volatile std::size_t value_;
@@ -325,7 +326,7 @@ private:
 	gc_data_deleter(Deleter_&& deleter);
 	gc_data_deleter(Ty_* data, Deleter_&& deleter);
 #else
-	gc_data_deleter(Deleter_deleter);
+	gc_data_deleter(Deleter_ deleter);
 	gc_data_deleter(Ty_* data, Deleter_ deleter);
 #endif
 
@@ -400,6 +401,11 @@ private:
 	Ty_* data_;
 	_GCPOINTER_DETAILS::gc_data_base* ref_;
 };
+
+#if _GCPOINTER_IS_CPLUSPLUS11
+template<typename Ty_, typename... Args_>
+gc_ptr<Ty_> make_gc(Args_&&... args);
+#endif
 
 /////////////////////////////////////////////////////////////////
 ///// Definitions
@@ -479,6 +485,58 @@ typename std::remove_reference<Ty_>::type&& gc_move(Ty_&& data) _GCPOINTER_NOEXC
 }
 #endif
 
+#if !_GCPOINTER_IS_CPLUSPLUS11 && defined(_GCPOINTER_MULTITHREADING)
+_GCPOINTER_DETAILS_BEGIN
+//
+// details::mutex_guard
+//
+
+mutex_guard::mutex_guard(mutex& mutex)
+	: mutex_(mutex)
+{
+	mutex.lock();
+}
+mutex_guard::~mutex_guard()
+{
+	mutex_.unlock();
+}
+
+//
+// details::atomic
+//
+
+atomic::atomic() _GCPOINTER_NOEXCEPT
+	: value_(0)
+{}
+atomic::atomic(std::size_t value) _GCPOINTER_NOEXCEPT
+	: value_(value)
+{}
+atomic::~atomic()
+{}
+
+bool atomic::operator==(std::size_t value) const _GCPOINTER_NOEXCEPT
+{
+	return value_ == value;
+}
+bool atomic::operator==(const atomic& atomic) const _GCPOINTER_NOEXCEPT
+{
+	return value_ == atomic.value_;
+}
+bool atomic::operator!=(std::size_t value) const _GCPOINTER_NOEXCEPT
+{
+	return value_ != value;
+}
+bool atomic::operator!=(const atomic& atomic) const _GCPOINTER_NOEXCEPT
+{
+	return value_ != atomic.value_;
+}
+atomic::operator std::size_t() const _GCPOINTER_NOEXCEPT
+{
+	return value_;
+}
+_GCPOINTER_DETAILS_END
+#endif
+
 //
 // details::gc_data_base
 //
@@ -535,7 +593,7 @@ void gc_data_base::dec_weak_ref() _GCPOINTER_NOEXCEPT
 
 std::size_t gc_data_base::use_count() const _GCPOINTER_NOEXCEPT
 {
-	return strong_ref_;
+	return static_cast<std::size_t>(strong_ref_);
 }
 _GCPOINTER_DETAILS_END
 
@@ -796,6 +854,14 @@ Ty_* gc_ptr<Ty_>::get() const _GCPOINTER_NOEXCEPT
 {
 	return data_;
 }
+
+#if _GCPOINTER_IS_CPLUSPLUS11
+template<typename Ty_, typename... Args_>
+gc_ptr<Ty_> make_gc(Args_&&... args)
+{
+	return gc_ptr<Ty_>(new Ty_(std::forward<Args_>(args)...));
+}
+#endif
 
 #ifdef _GCPOINTER_HAS_NAMESPACE
 }
