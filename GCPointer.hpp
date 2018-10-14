@@ -242,9 +242,13 @@ class gc_data_base
 #ifdef _GCPOINTER_HAS_NAMESPACE
 	template<typename Ty_>
 	friend class ::_GCPOINTER_HAS_NAMESPACE::gc_ptr;
+	template<typename Ty_>
+	friend class ::_GCPOINTER_HAS_NAMESPACE::gc_weak_ptr;
 #else
 	template<typename Ty_>
 	friend class ::gc_ptr;
+	template<typename Ty_>
+	friend class ::gc_weak_ptr;
 #endif
 	
 public:
@@ -265,6 +269,7 @@ protected:
 
 private:
 	inline void inc_strong_ref() _GCPOINTER_NOEXCEPT;
+	inline void inc_strong_ref_without_lock() _GCPOINTER_NOEXCEPT;
 	inline void dec_strong_ref() _GCPOINTER_NOEXCEPT;
 	inline void inc_weak_ref() _GCPOINTER_NOEXCEPT;
 	inline void dec_weak_ref() _GCPOINTER_NOEXCEPT;
@@ -273,10 +278,13 @@ private:
 
 private:
 #ifdef _GCPOINTER_MULTITHREADING
+	_GCPOINTER_DETAILS::mutex strong_ref_mutex;
+#endif
+
+private:
+#ifdef _GCPOINTER_MULTITHREADING
 	_GCPOINTER_DETAILS::atomic strong_ref_;
 	_GCPOINTER_DETAILS::atomic weak_ref_;
-
-	_GCPOINTER_DETAILS::mutex strong_ref_mutex_;
 #else
 	std::size_t strong_ref_;
 	std::size_t weak_ref_;
@@ -289,9 +297,13 @@ class gc_data _GCPOINTER_FINAL : public gc_data_base
 #ifdef _GCPOINTER_HAS_NAMESPACE
 	template<typename Ty2_>
 	friend class ::_GCPOINTER_HAS_NAMESPACE::gc_ptr;
+	template<typename Ty2_>
+	friend class ::_GCPOINTER_HAS_NAMESPACE::gc_weak_ptr;
 #else
 	template<typename Ty2_>
 	friend class ::gc_ptr;
+	template<typename Ty2_>
+	friend class ::gc_weak_ptr;
 #endif
 
 public:
@@ -321,9 +333,13 @@ class gc_data_deleter _GCPOINTER_FINAL : public gc_data_base
 #ifdef _GCPOINTER_HAS_NAMESPACE
 	template<typename Ty2_>
 	friend class ::_GCPOINTER_HAS_NAMESPACE::gc_ptr;
+	template<typename Ty2_>
+	friend class ::_GCPOINTER_HAS_NAMESPACE::gc_weak_ptr;
 #else
 	template<typename Ty2_>
 	friend class ::gc_ptr;
+	template<typename Ty2_>
+	friend class ::gc_weak_ptr;
 #endif
 
 public:
@@ -359,6 +375,8 @@ class gc_ptr _GCPOINTER_FINAL
 {
 	template<typename Ty2_>
 	friend class gc_ptr;
+	template<typename Ty2_>
+	friend class gc_weak_ptr;
 
 public:
 	typedef Ty_ element_type;
@@ -399,7 +417,17 @@ public:
 	gc_ptr& operator=(gc_rref<gc_ptr<Ty2_> > ptr) _GCPOINTER_NOEXCEPT;
 	gc_ptr& operator=(const gc_ptr& ptr) _GCPOINTER_NOEXCEPT;
 	gc_ptr& operator=(gc_rref<gc_ptr> ptr) _GCPOINTER_NOEXCEPT;
+#if _GCPOINTER_IS_CPLUSPLUS11
+	bool operator==(std::nullptr_t) const _GCPOINTER_NOEXCEPT;
+#endif
+	template<typename Ty2_>
+	bool operator==(const gc_ptr<Ty2_>& ptr) const _GCPOINTER_NOEXCEPT;
 	bool operator==(const gc_ptr& ptr) const _GCPOINTER_NOEXCEPT;
+#if _GCPOINTER_IS_CPLUSPLUS11
+	bool operator!=(std::nullptr_t) const _GCPOINTER_NOEXCEPT;
+#endif
+	template<typename Ty2_>
+	bool operator!=(const gc_ptr<Ty2_>& ptr) const _GCPOINTER_NOEXCEPT;
 	bool operator!=(const gc_ptr& ptr) const _GCPOINTER_NOEXCEPT;
 	Ty_& operator[](std::size_t index) const _GCPOINTER_NOEXCEPT;
 	Ty_* operator->() const _GCPOINTER_NOEXCEPT;
@@ -432,6 +460,70 @@ template<typename ToTy_, typename FromTy_>
 gc_ptr<ToTy_> gc_const_cast(const gc_ptr<FromTy_>& ptr) _GCPOINTER_NOEXCEPT;
 template<typename ToTy_, typename FromTy_>
 gc_ptr<ToTy_> gc_reinterpret_cast(const gc_ptr<FromTy_>& ptr) _GCPOINTER_NOEXCEPT;
+
+template<typename Ty_>
+class gc_weak_ptr _GCPOINTER_FINAL
+{
+	template<typename Ty2_>
+	friend class gc_weak_ptr;
+
+public:
+	typedef Ty_ element_type;
+	typedef gc_ptr<Ty_> strong_type;
+
+public:
+	gc_weak_ptr() _GCPOINTER_NOEXCEPT;
+#if _GCPOINTER_IS_CPLUSPLUS11
+	gc_weak_ptr(std::nullptr_t) _GCPOINTER_NOEXCEPT;
+#endif
+	template<typename Ty2_>
+	gc_weak_ptr(const gc_ptr<Ty2_>& ptr) _GCPOINTER_NOEXCEPT;
+	template<typename Ty2_>
+	gc_weak_ptr(const gc_weak_ptr<Ty2_>& ptr) _GCPOINTER_NOEXCEPT;
+	template<typename Ty2_>
+	gc_weak_ptr(gc_rref<gc_weak_ptr<Ty2_> > ptr) _GCPOINTER_NOEXCEPT;
+	gc_weak_ptr(const gc_weak_ptr& ptr) _GCPOINTER_NOEXCEPT;
+	gc_weak_ptr(gc_rref<gc_weak_ptr> ptr) _GCPOINTER_NOEXCEPT;
+	~gc_weak_ptr();
+
+public:
+#if _GCPOINTER_IS_CPLUSPLUS11
+	gc_weak_ptr& operator=(std::nullptr_t) _GCPOINTER_NOEXCEPT;
+#endif
+	template<typename Ty2_>
+	gc_weak_ptr& operator=(const gc_ptr<Ty2_>& ptr) _GCPOINTER_NOEXCEPT;
+	template<typename Ty2_>
+	gc_weak_ptr& operator=(const gc_weak_ptr<Ty2_>& ptr) _GCPOINTER_NOEXCEPT;
+	template<typename Ty2_>
+	gc_weak_ptr& operator=(gc_rref<gc_weak_ptr<Ty2_> > ptr) _GCPOINTER_NOEXCEPT;
+	gc_weak_ptr& operator=(const gc_weak_ptr& ptr) _GCPOINTER_NOEXCEPT;
+	gc_weak_ptr& operator=(gc_rref<gc_weak_ptr> ptr) _GCPOINTER_NOEXCEPT;
+#if _GCPOINTER_IS_CPLUSPLUS11
+	bool operator==(std::nullptr_t) const _GCPOINTER_NOEXCEPT;
+#endif
+	template<typename Ty2_>
+	bool operator==(const gc_weak_ptr<Ty2_>& ptr) const _GCPOINTER_NOEXCEPT;
+	bool operator==(const gc_weak_ptr& ptr) const _GCPOINTER_NOEXCEPT;
+#if _GCPOINTER_IS_CPLUSPLUS11
+	bool operator!=(std::nullptr_t) const _GCPOINTER_NOEXCEPT;
+#endif
+	template<typename Ty2_>
+	bool operator!=(const gc_weak_ptr<Ty2_>& ptr) const _GCPOINTER_NOEXCEPT;
+	bool operator!=(const gc_weak_ptr& ptr) const _GCPOINTER_NOEXCEPT;
+	operator bool() const _GCPOINTER_NOEXCEPT;
+
+public:
+	void reset() _GCPOINTER_NOEXCEPT;
+	void swap(gc_weak_ptr& other) _GCPOINTER_NOEXCEPT;
+
+	std::size_t use_count() const _GCPOINTER_NOEXCEPT;
+	bool expired() const _GCPOINTER_NOEXCEPT;
+	strong_type lock() const _GCPOINTER_NOEXCEPT;
+
+private:
+	Ty_* data_;
+	_GCPOINTER_DETAILS::gc_data_base* ref_;
+};
 
 /////////////////////////////////////////////////////////////////
 ///// Definitions
@@ -578,16 +670,20 @@ gc_data_base::gc_data_base() _GCPOINTER_NOEXCEPT
 void gc_data_base::inc_strong_ref() _GCPOINTER_NOEXCEPT
 {
 #ifdef _GCPOINTER_MULTITHREADING
-	mutex_guard guard(strong_ref_mutex_);
+	mutex_guard guard(strong_ref_mutex);
 #endif
 
+	++strong_ref_;
+}
+void gc_data_base::inc_strong_ref_without_lock() _GCPOINTER_NOEXCEPT
+{
 	++strong_ref_;
 }
 void gc_data_base::dec_strong_ref() _GCPOINTER_NOEXCEPT
 {
 	{
 #ifdef _GCPOINTER_MULTITHREADING
-		mutex_guard guard(strong_ref_mutex_);
+		mutex_guard guard(strong_ref_mutex);
 #endif
 
 		--strong_ref_;
@@ -894,10 +990,36 @@ gc_ptr<Ty_>& gc_ptr<Ty_>::operator=(gc_rref<gc_ptr> ptr) _GCPOINTER_NOEXCEPT
 
 	return *this;
 }
+#if _GCPOINTER_IS_CPLUSPLUS11
+template<typename Ty_>
+bool gc_ptr<Ty_>::operator==(std::nullptr_t) const _GCPOINTER_NOEXCEPT
+{
+	return expired();
+}
+#endif
+template<typename Ty_>
+template<typename Ty2_>
+bool gc_ptr<Ty_>::operator==(const gc_ptr<Ty2_>& ptr) const _GCPOINTER_NOEXCEPT
+{
+	return data_ == ptr.data_;
+}
 template<typename Ty_>
 bool gc_ptr<Ty_>::operator==(const gc_ptr& ptr) const _GCPOINTER_NOEXCEPT
 {
 	return data_ == ptr.data_;
+}
+#if _GCPOINTER_IS_CPLUSPLUS11
+template<typename Ty_>
+bool gc_ptr<Ty_>::operator!=(std::nullptr_t) const _GCPOINTER_NOEXCEPT
+{
+	return !expired();
+}
+#endif
+template<typename Ty_>
+template<typename Ty2_>
+bool gc_ptr<Ty_>::operator!=(const gc_ptr<Ty2_>& ptr) const _GCPOINTER_NOEXCEPT
+{
+	return data_ != ptr.data_;
 }
 template<typename Ty_>
 bool gc_ptr<Ty_>::operator!=(const gc_ptr& ptr) const _GCPOINTER_NOEXCEPT
@@ -1021,6 +1143,281 @@ gc_ptr<ToTy_> gc_reinterpret_cast(const gc_ptr<FromTy_>& ptr) _GCPOINTER_NOEXCEP
 	else
 	{
 		return gc_ptr<ToTy_>();
+	}
+}
+
+//
+// gc_weak_ptr
+//
+
+template<typename Ty_>
+gc_weak_ptr<Ty_>::gc_weak_ptr() _GCPOINTER_NOEXCEPT
+	: data_(_GCPOINTER_NULL), ref_(_GCPOINTER_NULL)
+{}
+#if _GCPOINTER_IS_CPLUSPLUS11
+template<typename Ty_>
+gc_weak_ptr<Ty_>::gc_weak_ptr(std::nullptr_t) _GCPOINTER_NOEXCEPT
+	: data_(_GCPOINTER_NULL), ref_(_GCPOINTER_NULL)
+{}
+#endif
+template<typename Ty_>
+template<typename Ty2_>
+gc_weak_ptr<Ty_>::gc_weak_ptr(const gc_ptr<Ty2_>& ptr) _GCPOINTER_NOEXCEPT
+	: data_(ptr.data_), ref_(ptr.ref_)
+{
+	if (ref_)
+	{
+		ref_->inc_weak_ref();
+	}
+}
+template<typename Ty_>
+template<typename Ty2_>
+gc_weak_ptr<Ty_>::gc_weak_ptr(const gc_weak_ptr<Ty2_>& ptr) _GCPOINTER_NOEXCEPT
+	: data_(ptr.data_), ref_(ptr.ref_)
+{
+	if (ref_)
+	{
+		ref_->inc_weak_ref();
+	}
+}
+template<typename Ty_>
+template<typename Ty2_>
+gc_weak_ptr<Ty_>::gc_weak_ptr(gc_rref<gc_weak_ptr<Ty2_> > ptr) _GCPOINTER_NOEXCEPT
+#if _GCPOINTER_IS_CPLUSPLUS11
+	: data_(ptr.data_), ref_(ptr.ref_)
+#else
+	: data_(ptr.object().data_), ref_(ptr.object().ref_)
+#endif
+{
+#if _GCPOINTER_IS_CPLUSPLUS11
+	ptr.data_ = _GCPOINTER_NULL;
+	ptr.ref_ = _GCPOINTER_NULL;
+#else
+	ptr.object().data_ = _GCPOINTER_NULL;
+	ptr.object().ref_ = _GCPOINTER_NULL;
+#endif
+}
+template<typename Ty_>
+gc_weak_ptr<Ty_>::gc_weak_ptr(const gc_weak_ptr& ptr) _GCPOINTER_NOEXCEPT
+	: data_(ptr.data_), ref_(ptr.ref_)
+{
+	if (ref_)
+	{
+		ref_->inc_weak_ref();
+	}
+}
+template<typename Ty_>
+gc_weak_ptr<Ty_>::gc_weak_ptr(gc_rref<gc_weak_ptr> ptr) _GCPOINTER_NOEXCEPT
+#if _GCPOINTER_IS_CPLUSPLUS11
+	: data_(ptr.data_), ref_(ptr.ref_)
+#else
+	: data_(ptr.object().data_), ref_(ptr.object().ref_)
+#endif
+{
+#if _GCPOINTER_IS_CPLUSPLUS11
+	ptr.data_ = _GCPOINTER_NULL;
+	ptr.ref_ = _GCPOINTER_NULL;
+#else
+	ptr.object().data_ = _GCPOINTER_NULL;
+	ptr.object().ref_ = _GCPOINTER_NULL;
+#endif
+}
+template<typename Ty_>
+gc_weak_ptr<Ty_>::~gc_weak_ptr()
+{
+	reset();
+}
+
+#if _GCPOINTER_IS_CPLUSPLUS11
+template<typename Ty_>
+gc_weak_ptr<Ty_>& gc_weak_ptr<Ty_>::operator=(std::nullptr_t) _GCPOINTER_NOEXCEPT
+{
+	reset();
+
+	return *this;
+}
+#endif
+template<typename Ty_>
+template<typename Ty2_>
+gc_weak_ptr<Ty_>& gc_weak_ptr<Ty_>::operator=(const gc_ptr<Ty2_>& ptr) _GCPOINTER_NOEXCEPT
+{
+	reset();
+
+	data_ = ptr.data_;
+	ref_ = ptr.ref_;
+
+	if (ref_)
+	{
+		ref_->inc_weak_ref();
+	}
+	
+	return *this;
+}
+template<typename Ty_>
+template<typename Ty2_>
+gc_weak_ptr<Ty_>& gc_weak_ptr<Ty_>::operator=(const gc_weak_ptr<Ty2_>& ptr) _GCPOINTER_NOEXCEPT
+{
+	reset();
+
+	data_ = ptr.data_;
+	ref_ = ptr.ref_;
+
+	if (ref_)
+	{
+		ref_->inc_weak_ref();
+	}
+
+	return *this;
+}
+template<typename Ty_>
+template<typename Ty2_>
+gc_weak_ptr<Ty_>& gc_weak_ptr<Ty_>::operator=(gc_rref<gc_weak_ptr<Ty2_> > ptr) _GCPOINTER_NOEXCEPT
+{
+	reset();
+
+#if _GCPOINTER_IS_CPLUSPLUS11
+	data_ = ptr.data_;
+	ref_ = ptr.ref_;
+
+	ptr.data_ = _GCPOINTER_NULL;
+	ptr.ref_ = _GCPOINTER_NULL;
+#else
+	data_ = ptr.object().data_;
+	ref_ = ptr.object().ref_;
+
+	ptr.object().data_ = _GCPOINTER_NULL;
+	ptr.object().ref_ = _GCPOINTER_NULL;
+#endif
+
+	return *this;
+}
+template<typename Ty_>
+gc_weak_ptr<Ty_>& gc_weak_ptr<Ty_>::operator=(const gc_weak_ptr& ptr) _GCPOINTER_NOEXCEPT
+{
+	reset();
+
+	data_ = ptr.data_;
+	ref_ = ptr.ref_;
+
+	return *this;
+}
+template<typename Ty_>
+gc_weak_ptr<Ty_>& gc_weak_ptr<Ty_>::operator=(gc_rref<gc_weak_ptr> ptr) _GCPOINTER_NOEXCEPT
+{
+	reset();
+
+#if _GCPOINTER_IS_CPLUSPLUS11
+	data_ = ptr.data_;
+	ref_ = ptr.ref_;
+
+	ptr.data_ = _GCPOINTER_NULL;
+	ptr.ref_ = _GCPOINTER_NULL;
+#else
+	data_ = ptr.object().data_;
+	ref_ = ptr.object().ref_;
+
+	ptr.object().data_ = _GCPOINTER_NULL;
+	ptr.object().ref_ = _GCPOINTER_NULL;
+#endif
+
+	return *this;
+}
+#if _GCPOINTER_IS_CPLUSPLUS11
+template<typename Ty_>
+bool gc_weak_ptr<Ty_>::operator==(std::nullptr_t) const _GCPOINTER_NOEXCEPT
+{
+	return expired();
+}
+#endif
+template<typename Ty_>
+template<typename Ty2_>
+bool gc_weak_ptr<Ty_>::operator==(const gc_weak_ptr<Ty2_>& ptr) const _GCPOINTER_NOEXCEPT
+{
+	return data_ == ptr.data_;
+}
+template<typename Ty_>
+bool gc_weak_ptr<Ty_>::operator==(const gc_weak_ptr& ptr) const _GCPOINTER_NOEXCEPT
+{
+	return data_ == ptr.data_;
+}
+#if _GCPOINTER_IS_CPLUSPLUS11
+template<typename Ty_>
+bool gc_weak_ptr<Ty_>::operator!=(std::nullptr_t) const _GCPOINTER_NOEXCEPT
+{
+	return !expired();
+}
+#endif
+template<typename Ty_>
+template<typename Ty2_>
+bool gc_weak_ptr<Ty_>::operator!=(const gc_weak_ptr<Ty2_>& ptr) const _GCPOINTER_NOEXCEPT
+{
+	return data_ != ptr.data_;
+}
+template<typename Ty_>
+bool gc_weak_ptr<Ty_>::operator!=(const gc_weak_ptr& ptr) const _GCPOINTER_NOEXCEPT
+{
+	return data_ != ptr.data_;
+}
+template<typename Ty_>
+gc_weak_ptr<Ty_>::operator bool() const _GCPOINTER_NOEXCEPT
+{
+	return !expired();
+}
+
+template<typename Ty_>
+void gc_weak_ptr<Ty_>::reset() _GCPOINTER_NOEXCEPT
+{
+	if (ref_)
+	{
+		ref_->dec_weak_ref();
+	}
+
+	data_ = _GCPOINTER_NULL;
+	ref_ = _GCPOINTER_NULL;
+}
+template<typename Ty_>
+void gc_weak_ptr<Ty_>::swap(gc_weak_ptr& other) _GCPOINTER_NOEXCEPT
+{
+	std::swap(data_, other.data_);
+	std::swap(ref_, other.ref_);
+}
+
+template<typename Ty_>
+std::size_t gc_weak_ptr<Ty_>::use_count() const _GCPOINTER_NOEXCEPT
+{
+	return ref_ ? ref_->use_count() : 0;
+}
+template<typename Ty_>
+bool gc_weak_ptr<Ty_>::expired() const _GCPOINTER_NOEXCEPT
+{
+	return use_count() == 0;
+}
+template<typename Ty_>
+gc_ptr<Ty_> gc_weak_ptr<Ty_>::lock() const _GCPOINTER_NOEXCEPT
+{
+	if (!ref_)
+	{
+		return gc_ptr<Ty_>();
+	}
+
+#ifdef _GCPOINTER_MULTITHREADING
+	_GCPOINTER_DETAILS::mutex_guard guard(ref_->strong_ref_mutex);
+#endif
+
+	if (ref_->use_count())
+	{
+		gc_ptr<Ty_> result;
+
+		result.data_ = data_;
+		result.ref_ = ref_;
+
+		ref_->inc_strong_ref_without_lock();
+
+		return result;
+	}
+	else
+	{
+		return gc_ptr<Ty_>();
 	}
 }
 
