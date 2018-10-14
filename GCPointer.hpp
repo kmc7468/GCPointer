@@ -357,6 +357,9 @@ _GCPOINTER_DETAILS_END
 template<typename Ty_>
 class gc_ptr _GCPOINTER_FINAL
 {
+	template<typename Ty2_>
+	friend class gc_ptr;
+
 public:
 	typedef Ty_ element_type;
 	typedef gc_weak_ptr<Ty_> weak_type;
@@ -376,6 +379,12 @@ public:
 	template<typename Deleter_>
 	gc_ptr(Ty_* data, Deleter_ deleter);
 #endif
+	template<typename Ty2_>
+	gc_ptr(const gc_ptr<Ty2_>& ptr) _GCPOINTER_NOEXCEPT;
+	template<typename Ty2_>
+	gc_ptr(const gc_ptr<Ty2_>& ptr, Ty_* data) _GCPOINTER_NOEXCEPT;
+	template<typename Ty2_>
+	gc_ptr(gc_rref<gc_ptr<Ty2_> > ptr) _GCPOINTER_NOEXCEPT;
 	gc_ptr(const gc_ptr& ptr) _GCPOINTER_NOEXCEPT;
 	gc_ptr(gc_rref<gc_ptr> ptr) _GCPOINTER_NOEXCEPT;
 	~gc_ptr();
@@ -384,6 +393,10 @@ public:
 #if _GCPOINTER_IS_CPLUSPLUS11
 	gc_ptr& operator=(std::nullptr_t) _GCPOINTER_NOEXCEPT;
 #endif
+	template<typename Ty2_>
+	gc_ptr& operator=(const gc_ptr<Ty2_>& ptr) _GCPOINTER_NOEXCEPT;
+	template<typename Ty2_>
+	gc_ptr& operator=(gc_rref<gc_ptr<Ty2_> > ptr) _GCPOINTER_NOEXCEPT;
 	gc_ptr& operator=(const gc_ptr& ptr) _GCPOINTER_NOEXCEPT;
 	gc_ptr& operator=(gc_rref<gc_ptr> ptr) _GCPOINTER_NOEXCEPT;
 	bool operator==(const gc_ptr& ptr) const _GCPOINTER_NOEXCEPT;
@@ -410,6 +423,15 @@ private:
 template<typename Ty_, typename... Args_>
 gc_ptr<Ty_> make_gc(Args_&&... args);
 #endif
+
+template<typename ToTy_, typename FromTy_>
+gc_ptr<ToTy_> gc_dynamic_cast(const gc_ptr<FromTy_>& ptr) _GCPOINTER_NOEXCEPT;
+template<typename ToTy_, typename FromTy_>
+gc_ptr<ToTy_> gc_static_cast(const gc_ptr<FromTy_>& ptr) _GCPOINTER_NOEXCEPT;
+template<typename ToTy_, typename FromTy_>
+gc_ptr<ToTy_> gc_const_cast(const gc_ptr<FromTy_>& ptr) _GCPOINTER_NOEXCEPT;
+template<typename ToTy_, typename FromTy_>
+gc_ptr<ToTy_> gc_reinterpret_cast(const gc_ptr<FromTy_>& ptr) _GCPOINTER_NOEXCEPT;
 
 /////////////////////////////////////////////////////////////////
 ///// Definitions
@@ -656,7 +678,6 @@ gc_data_deleter<Ty_, Deleter_>::gc_data_deleter(Ty_* data, Deleter_ deleter)
 	: data_(data), deleter_(deleter)
 {}
 #endif
-
 template<typename Ty_, typename Deleter_>
 void gc_data_deleter<Ty_, Deleter_>::delete_data() _GCPOINTER_NOEXCEPT
 {
@@ -719,6 +740,43 @@ gc_ptr<Ty_>::gc_ptr(Ty_* data, Deleter_ deleter)
 }
 #endif
 template<typename Ty_>
+template<typename Ty2_>
+gc_ptr<Ty_>::gc_ptr(const gc_ptr<Ty2_>& ptr) _GCPOINTER_NOEXCEPT
+	: data_(ptr.data_), ref_(ptr.ref_)
+{
+	if (ref_)
+	{
+		ref_->inc_strong_ref();
+	}
+}
+template<typename Ty_>
+template<typename Ty2_>
+gc_ptr<Ty_>::gc_ptr(const gc_ptr<Ty2_>& ptr, Ty_* data) _GCPOINTER_NOEXCEPT
+	: data_(data), ref_(ptr.ref_)
+{
+	if (ref_)
+	{
+		ref_->inc_strong_ref();
+	}
+}
+template<typename Ty_>
+template<typename Ty2_>
+gc_ptr<Ty_>::gc_ptr(gc_rref<gc_ptr<Ty2_> > ptr) _GCPOINTER_NOEXCEPT
+#if _GCPOINTER_IS_CPLUSPLUS11
+	: data_(ptr.data_), ref_(ptr.ref_)
+#else
+	: data_(ptr.object().data_), ref_(ptr.object().ref_)
+#endif
+{
+#if _GCPOINTER_IS_CPLUSPLUS11
+	ptr.data_ = _GCPOINTER_NULL;
+	ptr.ref_ = _GCPOINTER_NULL;
+#else
+	ptr.object().data_ = _GCPOINTER_NULL;
+	ptr.object().ref_ = _GCPOINTER_NULL;
+#endif
+}
+template<typename Ty_>
 gc_ptr<Ty_>::gc_ptr(const gc_ptr& ptr) _GCPOINTER_NOEXCEPT
 	: data_(ptr.data_), ref_(ptr.ref_)
 {
@@ -759,6 +817,44 @@ gc_ptr<Ty_>& gc_ptr<Ty_>::operator=(std::nullptr_t) _GCPOINTER_NOEXCEPT
 }
 #endif
 template<typename Ty_>
+template<typename Ty2_>
+gc_ptr<Ty_>& gc_ptr<Ty_>::operator=(const gc_ptr<Ty2_>& ptr) _GCPOINTER_NOEXCEPT
+{
+	reset();
+
+	data_ = ptr.data_;
+	ref_ = ptr.ref_;
+
+	if (ref_)
+	{
+		ref_->inc_strong_ref();
+	}
+
+	return *this;
+}
+template<typename Ty_>
+template<typename Ty2_>
+gc_ptr<Ty_>& gc_ptr<Ty_>::operator=(gc_rref<gc_ptr<Ty2_> > ptr) _GCPOINTER_NOEXCEPT
+{
+	reset();
+
+#if _GCPOINTER_IS_CPLUSPLUS11
+	data_ = ptr.data_;
+	ref_ = ptr.ref_;
+
+	ptr.data_ = _GCPOINTER_NULL;
+	ptr.ref_ = _GCPOINTER_NULL;
+#else
+	data_ = ptr.object().data_;
+	ref_ = ptr.object().ref_;
+
+	ptr.object().data_ = _GCPOINTER_NULL;
+	ptr.object().ref_ = _GCPOINTER_NULL;
+#endif
+
+	return *this;
+}
+template<typename Ty_>
 gc_ptr<Ty_>& gc_ptr<Ty_>::operator=(const gc_ptr& ptr) _GCPOINTER_NOEXCEPT
 {
 	reset();
@@ -774,7 +870,7 @@ gc_ptr<Ty_>& gc_ptr<Ty_>::operator=(const gc_ptr& ptr) _GCPOINTER_NOEXCEPT
 	return *this;
 }
 template<typename Ty_>
-gc_ptr<Ty_>& gc_ptr<Ty_>::operator=(gc_rref<gc_ptr<Ty_> > ptr) _GCPOINTER_NOEXCEPT
+gc_ptr<Ty_>& gc_ptr<Ty_>::operator=(gc_rref<gc_ptr> ptr) _GCPOINTER_NOEXCEPT
 {
 	reset();
 
@@ -866,6 +962,63 @@ gc_ptr<Ty_> make_gc(Args_&&... args)
 	return gc_ptr<Ty_>(new Ty_(std::forward<Args_>(args)...));
 }
 #endif
+
+template<typename ToTy_, typename FromTy_>
+gc_ptr<ToTy_> gc_dynamic_cast(const gc_ptr<FromTy_>& ptr) _GCPOINTER_NOEXCEPT
+{
+	ToTy_* const to = dynamic_cast<ToTy_*>(ptr.get());
+
+	if (to)
+	{
+		return gc_ptr<ToTy_>(ptr, to);
+	}
+	else
+	{
+		return gc_ptr<ToTy_>();
+	}
+}
+template<typename ToTy_, typename FromTy_>
+gc_ptr<ToTy_> gc_static_cast(const gc_ptr<FromTy_>& ptr) _GCPOINTER_NOEXCEPT
+{
+	ToTy_* const to = static_cast<ToTy_*>(ptr.get());
+
+	if (to)
+	{
+		return gc_ptr<ToTy_>(ptr, to);
+	}
+	else
+	{
+		return gc_ptr<ToTy_>();
+	}
+}
+template<typename ToTy_, typename FromTy_>
+gc_ptr<ToTy_> gc_const_cast(const gc_ptr<FromTy_>& ptr) _GCPOINTER_NOEXCEPT
+{
+	ToTy_* const to = const_cast<ToTy_*>(ptr.get());
+
+	if (to)
+	{
+		return gc_ptr<ToTy_>(ptr, to);
+	}
+	else
+	{
+		return gc_ptr<ToTy_>();
+	}
+}
+template<typename ToTy_, typename FromTy_>
+gc_ptr<ToTy_> gc_reinterpret_cast(const gc_ptr<FromTy_>& ptr) _GCPOINTER_NOEXCEPT
+{
+	ToTy_* const to = reinterpret_cast<ToTy_*>(ptr.get());
+
+	if (to)
+	{
+		return gc_ptr<ToTy_>(ptr, to);
+	}
+	else
+	{
+		return gc_ptr<ToTy_>();
+	}
+}
 
 #ifdef _GCPOINTER_HAS_NAMESPACE
 }
