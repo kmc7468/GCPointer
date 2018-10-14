@@ -239,10 +239,13 @@ class gc_weak_ptr;
 _GCPOINTER_DETAILS_BEGIN
 class gc_data_base
 {
+#ifdef _GCPOINTER_HAS_NAMESPACE
 	template<typename Ty_>
-	friend class gc_ptr;
+	friend class ::_GCPOINTER_HAS_NAMESPACE::gc_ptr;
+#else
 	template<typename Ty_>
-	friend class gc_weak_ptr;
+	friend class ::gc_ptr;
+#endif
 	
 public:
 	gc_data_base(const gc_data_base& data) _GCPOINTER_DELETE;
@@ -283,10 +286,13 @@ private:
 template<typename Ty_>
 class gc_data _GCPOINTER_FINAL : public gc_data_base
 {
+#ifdef _GCPOINTER_HAS_NAMESPACE
 	template<typename Ty2_>
-	friend class gc_ptr;
+	friend class ::_GCPOINTER_HAS_NAMESPACE::gc_ptr;
+#else
 	template<typename Ty2_>
-	friend class gc_weak_ptr;
+	friend class ::gc_ptr;
+#endif
 
 public:
 	gc_data(const gc_data& data) _GCPOINTER_DELETE;
@@ -312,10 +318,13 @@ private:
 template<typename Ty_, typename Deleter_>
 class gc_data_deleter _GCPOINTER_FINAL : public gc_data_base
 {
+#ifdef _GCPOINTER_HAS_NAMESPACE
 	template<typename Ty2_>
-	friend class gc_ptr;
+	friend class ::_GCPOINTER_HAS_NAMESPACE::gc_ptr;
+#else
 	template<typename Ty2_>
-	friend class gc_weak_ptr;
+	friend class ::gc_ptr;
+#endif
 
 public:
 	gc_data_deleter(const gc_data_deleter& data) _GCPOINTER_DELETE;
@@ -348,11 +357,6 @@ _GCPOINTER_DETAILS_END
 template<typename Ty_>
 class gc_ptr _GCPOINTER_FINAL
 {
-	template<typename Ty2_>
-	friend class gc_ptr;
-	template<typename Ty2_>
-	friend class gc_weak_ptr;
-
 public:
 	typedef Ty_ element_type;
 	typedef gc_weak_ptr<Ty_> weak_type;
@@ -654,13 +658,13 @@ gc_data_deleter<Ty_, Deleter_>::gc_data_deleter(Ty_* data, Deleter_ deleter)
 #endif
 
 template<typename Ty_, typename Deleter_>
-void gc_data_deleter<Ty_, typename Deleter_>::delete_data() _GCPOINTER_NOEXCEPT
+void gc_data_deleter<Ty_, Deleter_>::delete_data() _GCPOINTER_NOEXCEPT
 {
 	deleter_(data_);
 	data_ = _GCPOINTER_NULL;
 }
 template<typename Ty_, typename Deleter_>
-void gc_data_deleter<Ty_, typename Deleter_>::delete_this() _GCPOINTER_NOEXCEPT
+void gc_data_deleter<Ty_, Deleter_>::delete_this() _GCPOINTER_NOEXCEPT
 {
 	delete this;
 }
